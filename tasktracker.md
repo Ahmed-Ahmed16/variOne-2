@@ -37,27 +37,7 @@
 
 ---
 
-## Phase 0 — Repo bootstrap (before Day 1)
 
-Owner: B, with help from anyone available.
-
-- [ ] Create private git repo `varione`
-- [ ] Drop `CLAUDE.md` at repo root
-- [ ] Drop `PRD.md`
-- [ ] Drop `tasktracker.md` (this file)
-- [ ] **Reconcile PRD §7.2 pin map against working v0.4 firmware** — `src/main.cpp` is the source of truth for what is wired and known good; PRD must match (PN532 on I²C, CC1101 CSN=15, GDO0=4, buttons LEFT=14/UP=26/RIGHT=32/DOWN=33, IR RX=36, IR TX=25 planned). Update Appendix B `config.h` accordingly.
-- [ ] Create `platformio.ini` per PRD §8.1, **plus per-peripheral test envs** (`[env:cc1101_test]`, `[env:pn532_test]`, `[env:sd_test]`, `[env:ir_test]`)
-- [ ] Create `src/config.h` from PRD Appendix B (post-reconcile)
-- [ ] Keep current working `src/main.cpp` (v0.4) as the integration target; do **not** stub-overwrite
-- [ ] First green `pio run` on the main env (working firmware still compiles)
-- [ ] Push to private remote, all 5 engineers cloned and building locally
-- [ ] `docs/diary/` directory created (one daily 5-line note per engineer)
-- [ ] `docs/test-log.md` created — one row per smoke test, columns `date | peripheral | env | signature | result | notes`
-- [ ] `docs/rf-frontend.md` created — RF chain decisions per PRD §7.4
-
-**Gate:** every team member can `pio run` cleanly before Day 1 starts, working v0.4 features still run on hardware after merge.
-
----
 
 ## Active Wi-Fi Revamp Track
 
