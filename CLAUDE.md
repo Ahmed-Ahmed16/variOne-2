@@ -5,19 +5,25 @@ awareness device. This file is the standing brief for every session.
 
 ## First thing, every session
 
-Read `PRD.md` before doing anything else. It is the source of truth.
-If anything you are about to do conflicts with the PRD, the PRD wins —
+PRD.md is the source of truth. Load only the section relevant to the current task. Do not load the full PRD on session start.
+If anything you are about to do conflicts with the PRD, ask me right away —
 flag the conflict and ask before deviating.
 
-Quick references inside the PRD:
+PRD.md is the source of truth. Load only the section relevant to the current task.
 
-* **Pin map:** §7.2 (single source of truth — firmware pin constants mirror it)
-* **Module structure:** §8.2
-* **Feature specs and acceptance criteria:** §9
-* **Operational posture:** §5.4
-* **Project plan and ownership:** §14
-* **SD capture schemas:** §11
-* **Single-radio concurrent operation (deauth + VariPortal):** §9.6.1
+| What you need | Section |
+|---|---|
+| Pin map | §7.2 |
+| Module structure + directory tree | §8.2 + Appendix A |
+| Feature specs + acceptance criteria | §9 |
+| SD capture schemas | §11 |
+| Operational posture + safety boundary | §5.1 + §5.4 |
+| Concurrent deauth + VariPortal | §9.6.1 |
+| Battery architecture | §6.4 |
+| Project plan + ownership | §14 |
+| Demo gates | §16 |
+
+If the task is vague, ask which §9 acceptance criterion it maps to before reading anything.
 
 ## Build system
 
