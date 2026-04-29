@@ -28,7 +28,10 @@ U8G2_SH1106_128X64_NONAME_F_HW_I2C display(U8G2_R0, U8X8_PIN_NONE);
 
 // === PIN DEFINITIONS ===
 #define PIN_CC_CS  15
-#define PIN_CC2_CS  2   // Second CC1101 (jammer) — wire spare on GPIO 2
+// The second CC1101 is disabled in the main firmware for now: the spare radio
+// is currently broken and the old GPIO2/GPIO12 wiring caused boot/flash trouble.
+#define ENABLE_CC1101_JAMMER 0
+#define PIN_CC2_CS  2
 #define PIN_SD_CS   5
 #define PIN_VSPI_SCK  18
 #define PIN_VSPI_MISO 19
@@ -134,6 +137,7 @@ MoodType reactionMood     = MOOD_IDLE;
 char reactionLine1[22]    = {0};
 char reactionLine2[22]    = {0};
 unsigned long lastInputTime = 0;
+bool mascotVisualAllowed  = false;
 #define REACTION_MS   2000
 #define SLEEP_TIMEOUT 30000
 
@@ -147,6 +151,7 @@ void triggerReaction(MoodType mood, const char* l1, const char* l2 = nullptr) {
 
 // Draw the robot-panda mascot at head-center (cx, cy)
 void drawMascot(int cx, int cy, MoodType mood) {
+  if (!mascotVisualAllowed) return;
 
   // Head
   display.drawDisc(cx, cy, 8);
@@ -250,7 +255,9 @@ void drawMascot(int cx, int cy, MoodType mood) {
 void drawReactionScreen() {
   display.clearBuffer();
 
+  mascotVisualAllowed = true;
   drawMascot(22, 20, reactionMood);
+  mascotVisualAllowed = false;
 
   display.drawVLine(46, 8, 48);
 
@@ -302,6 +309,7 @@ void drawReactionScreen() {
 }
 
 void drawBootAnimation() {
+  mascotVisualAllowed = true;
   // Phase 1: character walks in from left
   for (int x = -15; x <= 22; x += 5) {
     display.clearBuffer();
@@ -338,6 +346,7 @@ void drawBootAnimation() {
     delay(220);
   }
   delay(200);
+  mascotVisualAllowed = false;
 }
 
 // ============================================================
@@ -398,6 +407,7 @@ animation:spin 1s linear infinite;margin:16px auto}
 
 enum AppState {
   STATE_MENU,
+  STATE_WIFI_MENU,
   STATE_WIFI_SCAN,
   STATE_WIFI_RESULTS,
   STATE_PACKET_MONITOR,
@@ -406,6 +416,7 @@ enum AppState {
   STATE_DEAUTH_TARGET,
   STATE_DEAUTH_CLIENT_SCAN,
   STATE_DEAUTH_CLIENT_SELECT,
+  STATE_DEAUTH_CONFIRM,
   STATE_DEAUTH_ATTACK,
   STATE_BEACON_SPAM,
   STATE_ET_TARGET,
@@ -426,21 +437,28 @@ AppState currentState = STATE_MENU;
 
 // === MENU ===
 const char* menuItems[] = {
+  "Wi-Fi",
+  "Sub-GHz",
+  "NFC",
+  "IR",
+  "Mascot"
+};
+const int menuCount = 5;
+int menuIndex = 0;
+
+const char* wifiMenuItems[] = {
   "AP Scan",
   "Channel Graph",
   "Phone Probes",
   "Deauth Detector",
   "Deauth Attack",
   "SSID Spam",
-  "VariPortal AP",
-  "Portal Theme",
-  "Sub-GHz",
-  "NFC Reader",
-  "IR Remote",
-  "About"
+  "VariPortal",
+  "Portal Theme"
 };
-const int menuCount = 12;
-int menuIndex = 0;
+const int wifiMenuCount = 8;
+int wifiMenuIndex = 0;
+int wifiMenuScroll = 0;
 
 // === WIFI DATA ===
 struct WifiNetwork {
@@ -504,10 +522,12 @@ uint8_t attackClientMAC[6];
 int attackClientIdx = 0;
 bool deauthReturnToPortal = false;
 #define CLIENT_SCAN_MS 10000
+#define DEAUTH_CONFIRM_HOLD_MS 1200
 #define DEAUTH_ATTACK_MS 60000
 #define DEAUTH_SEND_INTERVAL_MS 20
 #define DEAUTH_FRAMES_PER_TICK 3
 unsigned long clientScanStart = 0;
+unsigned long deauthConfirmHoldStart = 0;
 
 // === BEACON SPAM ===
 const char* spamSSIDs[] = {
@@ -674,6 +694,7 @@ void saveWifiPortalEvent(const char* user, const char* pass);
 void loadSdPortalThemes();
 const char* deauthModeName(DeauthTargetMode mode);
 void startClientScan();
+void startDeauthAttack();
 void sha1Hex(const String& payload, char* out, size_t outSize);
 void maskSecret(const char* in, char* out, size_t outSize);
 void sanitizeLogField(const char* in, char* out, size_t outSize);
@@ -839,7 +860,7 @@ void captureRawSignal() {
     else if (sgLastSimilarityPct >= 50)
       Serial.printf("[CC1101] CODE TYPE: UNCERTAIN (sim=%d%%) — run freq scanner, try replay once\n", sgLastSimilarityPct);
     else
-      Serial.printf("[CC1101] CODE TYPE: ROLLING? (sim=%d%%) — replay will likely be rejected. Try RollJam ('j') instead\n", sgLastSimilarityPct);
+      Serial.printf("[CC1101] CODE TYPE: ROLLING? (sim=%d%%) — replay will likely be rejected. RollJam needs a working second CC1101\n", sgLastSimilarityPct);
   } else {
     sgLastSimilarityPct = -1;
     sgLastAvgDeltaUs = 0;
@@ -918,7 +939,7 @@ void captureRawSignal() {
 void startSubGhz() {
   if (!cc1101Ok) return;
   DBG_PRINTLN("[CC1101] Sub-GHz screen start");
-  Serial.println("[CC1101] serial helpers: 1=car 2=gate 5=fan 6=set315MHz(fan) 7=set433MHz 3=rolling+arm 4=4press 0=unknown f=freqscan u=bw-tune j=rolljam");
+  Serial.println("[CC1101] serial helpers: 1=car 2=gate 5=fan 8=appliance 6=set315MHz(fan) 7=set433MHz 3=rolling+arm 4=4press 0=unknown f=freqscan u=bw-tune j=rolljam(if jammer fitted)");
   Serial.println("[CC1101] serial x=toy rolling-code simulator report");
   Serial.println("[CC1101] rolling classify: send 3 -> press remote once -> OK -> press remote again");
   Serial.println("[CC1101] replay: after capture -> OK replay -> UP accepted / serial i interaction / DOWN rejected");
@@ -949,6 +970,11 @@ void stopSubGhz() {
 // ──────────────────────────────────────────────────────────────────
 
 void initCC1101Jammer() {
+#if !ENABLE_CC1101_JAMMER
+  cc1101JamOk = false;
+  Serial.println("[CC1101-JAM] disabled - second CC1101 marked broken; single-radio capture/replay only");
+  return;
+#endif
   pinMode(PIN_CC2_CS, OUTPUT);
   digitalWrite(PIN_CC2_CS, HIGH);
   cc1101Jam.setSpiPin(PIN_VSPI_SCK, PIN_VSPI_MISO, PIN_VSPI_MOSI, PIN_CC2_CS);
@@ -971,8 +997,8 @@ void initCC1101Jammer() {
 
 void startJammer() {
   if (!cc1101JamOk) {
-    Serial.println("[CC1101-JAM] not available — wire spare CC1101 to CS=GPIO2");
-    triggerReaction(MOOD_FAIL, "No jammer", "wire GPIO2");
+    Serial.println("[CC1101-JAM] not available - second CC1101 disabled/broken; use single-radio capture/replay");
+    triggerReaction(MOOD_FAIL, "No jammer", "single radio");
     return;
   }
   // Narrow RX BW on primary CC1101 to reject jammer leakage
@@ -991,6 +1017,11 @@ void stopJammer() {
 
 void startRollJam() {
   if (!cc1101Ok) { triggerReaction(MOOD_FAIL, "No CC1101", "check wiring"); return; }
+  if (!cc1101JamOk) {
+    Serial.println("[RollJam] blocked - second CC1101 disabled/broken. Single-radio capture/replay still works.");
+    triggerReaction(MOOD_FAIL, "No jammer", "2nd CC broken");
+    return;
+  }
   sgRJPhase      = RJ_JAMMING_WAIT_P1;
   sgRJCode1Count = 0;
   setSubGhzTargetClass("rolling_code_car_attempt");
@@ -1419,6 +1450,7 @@ unsigned long   nfcAccessLastScan = 0;
 
 bool     nfcEmulateGotHit  = false;
 unsigned long nfcEmulateLastTry = 0;
+char     nfcWriteStatus[36] = "";
 
 int  nfcMenuIdx = 0;
 
@@ -1633,8 +1665,9 @@ static void nfcTryEMVNetwork(NfcCard& card) {
     nfcParseEmvTlv(card, rsp, rspLen - 2);
   }
 
-  for (uint8_t sfi = 1; sfi <= 10 && (!strlen(card.panMasked) || !strlen(card.holder)); sfi++) {
-    for (uint8_t rec = 1; rec <= 5 && (!strlen(card.panMasked) || !strlen(card.holder)); rec++) {
+  // Read SFI 1-4, up to 6 records each — no early stop so 9F4D/9F36 are captured
+  for (uint8_t sfi = 1; sfi <= 4; sfi++) {
+    for (uint8_t rec = 1; rec <= 6; rec++) {
       uint8_t readRecord[] = {0x00, 0xB2, rec, (uint8_t)((sfi << 3) | 0x04), 0x00};
       rspLen = sizeof(rsp);
       char label[18];
@@ -1643,14 +1676,33 @@ static void nfcTryEMVNetwork(NfcCard& card) {
         nfcSawRecord = true;
         snprintf(nfcLimitStage, sizeof(nfcLimitStage), "records");
         nfcParseEmvTlv(card, rsp, rspLen - 2);
+      } else {
+        break; // 6A83 = no more records in this SFI
       }
       delay(8);
     }
   }
-  Serial.printf("[NFC-EMV] result pan=%s expiry=%s name=%s\n",
+
+  // Transaction log: if 9F4D was found, count readable log records
+  nfcTxLogCount = 0;
+  if (nfcLogSfi > 0 && nfcLogMaxRec > 0) {
+    uint8_t logSfi = (nfcLogSfi >> 3) & 0x1F;
+    if (logSfi == 0) logSfi = nfcLogSfi; // some cards store raw SFI
+    uint8_t maxLog = (nfcLogMaxRec < 5) ? nfcLogMaxRec : 5;
+    for (uint8_t r = 1; r <= maxLog; r++) {
+      uint8_t lrec[] = {0x00, 0xB2, r, (uint8_t)((logSfi << 3) | 0x04), 0x00};
+      uint8_t lrsp[96]; uint8_t lrspLen = sizeof(lrsp);
+      char ll[20]; snprintf(ll, sizeof(ll), "LOG_%u_%u", logSfi, r);
+      if (nfcApdu(ll, lrec, sizeof(lrec), lrsp, &lrspLen)) nfcTxLogCount++;
+    }
+    Serial.printf("[NFC-EMV] tx_log=%d records sfi=%u\n", nfcTxLogCount, logSfi);
+  }
+
+  Serial.printf("[NFC-EMV] result pan=%s expiry=%s name=%s atc=%02X%02X log_sfi=%u tx=%d\n",
                 strlen(card.panMasked) ? "masked-present" : "missing",
                 strlen(card.expiry) ? card.expiry : "missing",
-                strlen(card.holder) ? "masked-present" : "missing");
+                strlen(card.holder) ? "masked-present" : "missing",
+                nfcAtc[0], nfcAtc[1], nfcLogSfi, nfcTxLogCount);
 }
 
 void nfcReadCard() {
@@ -1684,9 +1736,11 @@ void nfcReadCard() {
   nfcSawAidSelect = false;
   nfcSawGpo = false;
   nfcSawRecord = false;
+  nfcLogSfi = 0; nfcLogMaxRec = 0; nfcTxLogCount = 0;
+  nfcAtc[0] = 0; nfcAtc[1] = 0;
   snprintf(nfcLimitStage, sizeof(nfcLimitStage), "uid-only");
   nfcCard.valid = true;
-  nfcCard.sak   = 0;
+  nfcCard.sak   = nfc532.getLastPassiveTargetSak();
   nfcCard.uidLen = uidLen;
   strncpy(nfcCard.network, "", 1);
   strncpy(nfcCard.aid, "", 1);
@@ -2015,6 +2069,8 @@ const char* subGhzComparisonVerdict() {
 const char* subGhzSecurityVerdict() {
   if (strcmp(sgTargetClass, "fixed_code_car") == 0) return "static_replay_expected_if_capture_clean";
   if (strcmp(sgTargetClass, "fixed_code_gate") == 0) return "static_replay_expected_if_capture_clean";
+  if (strcmp(sgTargetClass, "fixed_code_fan") == 0) return "static_replay_expected_if_capture_clean";
+  if (strcmp(sgTargetClass, "fixed_code_appliance") == 0) return "static_replay_expected_if_capture_clean";
   if (strcmp(sgTargetClass, "rolling_code_car_attempt") == 0) return "dynamic_replay_expected_rejected_interaction_only_possible";
   return "unknown_requires_two_capture_comparison";
 }
@@ -2055,7 +2111,8 @@ void saveSubGhzReplayResult(const char* result, const char* observation) {
   f.println("  \"schema\": 1,");
   f.printf("  \"seq\": %lu,\n", (unsigned long)seq);
   f.printf("  \"captured_at\": \"uptime-ms-%lu\",\n", replayStamp);
-  f.println("  \"freq_hz\": 433920000,");
+  uint32_t freqKHz = (uint32_t)(sgActiveFreqMHz * 1000.0f + 0.5f);
+  f.printf("  \"freq_hz\": %lu,\n", (unsigned long)(freqKHz * 1000UL));
   f.println("  \"modulation\": \"OOK\",");
   f.printf("  \"target_class\": \"%s\",\n", sgTargetClass);
   f.printf("  \"result\": \"%s\",\n", result);
@@ -2507,6 +2564,268 @@ void printNfcLimitSimulation() {
   Serial.println("[NFC-SIM] safe demo output: masked metadata + exact APDU stop point; no payment relay/emulation attempted");
 }
 
+// ============================================================
+// MIFARE CLASSIC — READ / SAVE / EMULATE / WRITE
+// Implements PRD §9.2 access card sub-features (F2 extension)
+// ============================================================
+
+// Attempt Mifare Classic sector dump using built-in key dictionary.
+// Returns true if card detected (even UID-only with 0 sectors).
+bool nfcReadMifare(NfcMifareCard& mc) {
+  memset(&mc, 0, sizeof(mc));
+  mc.valid = false;
+
+  Wire.beginTransmission(0x24);
+  if (Wire.endTransmission() != 0) {
+    snprintf(mifareStatus, sizeof(mifareStatus), "PN532 off bus");
+    return false;
+  }
+
+  uint8_t uid[7]; uint8_t uidLen = 0;
+  if (!nfc532.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLen, 200)) {
+    snprintf(mifareStatus, sizeof(mifareStatus), "No card");
+    return false;
+  }
+
+  mc.uidLen = uidLen;
+  memcpy(mc.uidRaw, uid, uidLen);
+  {
+    char* p = mc.uid;
+    for (uint8_t i = 0; i < uidLen; i++)
+      p += (i ? snprintf(p, 4, ":%02X", uid[i]) : snprintf(p, 3, "%02X", uid[i]));
+  }
+  mc.sak   = nfc532.getLastPassiveTargetSak();
+  mc.valid = true;
+
+  if (uidLen != 4) {
+    mc.sectorsRead = 0;
+    snprintf(mifareStatus, sizeof(mifareStatus), "UID-only (len=%u)", uidLen);
+    return true;
+  }
+
+  snprintf(mifareStatus, sizeof(mifareStatus), "Dumping...");
+  mc.sectorsRead = 0;
+  bool cardActive = true;
+
+  for (uint8_t sector = 0; sector < MIFARE_SECTOR_COUNT; sector++) {
+    uint8_t trailer = sector * 4 + 3;
+    bool unlocked = false;
+
+    for (int ki = 0; ki < MIFARE_KEY_DICT_SIZE && !unlocked; ki++) {
+      for (int kt = 0; kt < 2 && !unlocked; kt++) {
+        if (!cardActive) {
+          if (!nfc532.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLen, 100)) {
+            snprintf(mifareStatus, sizeof(mifareStatus), "Card lost s%u", sector);
+            return mc.sectorsRead > 0;
+          }
+          cardActive = true;
+        }
+        bool ok = nfc532.mifareclassic_AuthenticateBlock(
+            uid, uidLen, trailer, kt, (uint8_t*)mifareKeyDict[ki]);
+        if (ok) {
+          unlocked = true;
+          memcpy(mc.sectorKeyUsed[sector], mifareKeyDict[ki], 6);
+          mc.sectorKeyIsB[sector] = (kt == 1);
+          bool allBlocksRead = true;
+          for (uint8_t b = 0; b < 4; b++) {
+            uint8_t blockNum = sector * 4 + b;
+            if (!nfc532.mifareclassic_ReadDataBlock(blockNum, mc.blocks[blockNum])) {
+              memset(mc.blocks[blockNum], 0, 16);
+              allBlocksRead = false;
+              Serial.printf("[MIFARE] s%u b%u read fail\n", sector, b);
+            }
+          }
+          if (allBlocksRead) {
+            mc.sectorUnlocked[sector] = true;
+            mc.sectorsRead++;
+            Serial.printf("[MIFARE] s%u ok ki=%d %s\n", sector, ki, kt ? "B" : "A");
+          } else {
+            Serial.printf("[MIFARE] s%u auth ok but dump incomplete\n", sector);
+          }
+        } else {
+          cardActive = false;
+          delay(5);
+        }
+      }
+    }
+    if (!unlocked) Serial.printf("[MIFARE] s%u locked\n", sector);
+  }
+
+  snprintf(mifareStatus, sizeof(mifareStatus), "%d/%d sectors", mc.sectorsRead, MIFARE_SECTOR_COUNT);
+  return true;
+}
+
+// Save Mifare dump to SD as JSON + raw binary sidecar for reload.
+void nfcSaveMifare(const NfcMifareCard& mc) {
+  if (!sdAvailable || !mc.valid) return;
+
+  char safeUid[20];
+  strncpy(safeUid, mc.uid, sizeof(safeUid) - 1);
+  safeUid[sizeof(safeUid)-1] = '\0';
+  for (char* p = safeUid; *p; p++) if (*p == ':') *p = '-';
+
+  // JSON (human-readable / schema §11.2 extension)
+  char jpath[56];
+  snprintf(jpath, sizeof(jpath), "%s/%lu_%s_mfc.json", NFC_CAPTURE_DIR, millis(), safeUid);
+  File jf = SD.open(jpath, FILE_WRITE);
+  if (jf) {
+    jf.println("{");
+    jf.printf("  \"schema\": 1,\n");
+    jf.printf("  \"captured_at\": \"uptime-ms-%lu\",\n", millis());
+    jf.printf("  \"type\": \"mifare_classic_1k\",\n");
+    jf.printf("  \"uid\": \"%s\",\n", mc.uid);
+    jf.printf("  \"uid_len\": %u,\n", mc.uidLen);
+    jf.printf("  \"sak\": \"0x%02X\",\n", mc.sak);
+    jf.printf("  \"sectors_read\": %d,\n", mc.sectorsRead);
+    jf.println("  \"sectors\": [");
+    bool first = true;
+    for (int s = 0; s < MIFARE_SECTOR_COUNT; s++) {
+      if (!mc.sectorUnlocked[s]) continue;
+      if (!first) jf.println(",");
+      first = false;
+      jf.printf("    {\"sector\":%d,\"key\":\"%02X%02X%02X%02X%02X%02X\","
+                "\"key_type\":\"%s\",\"blocks\":[",
+                s,
+                mc.sectorKeyUsed[s][0], mc.sectorKeyUsed[s][1],
+                mc.sectorKeyUsed[s][2], mc.sectorKeyUsed[s][3],
+                mc.sectorKeyUsed[s][4], mc.sectorKeyUsed[s][5],
+                mc.sectorKeyIsB[s] ? "B" : "A");
+      for (int b = 0; b < 4; b++) {
+        jf.print(b ? ",\"" : "\"");
+        for (int i = 0; i < 16; i++) jf.printf("%02X", mc.blocks[s*4+b][i]);
+        jf.print("\"");
+      }
+      jf.print("]}");
+    }
+    jf.println("\n  ]\n}");
+    jf.close();
+  }
+
+  // Binary sidecar — raw NfcMifareCard struct for fast reload
+  char bpath[56];
+  snprintf(bpath, sizeof(bpath), "%s/%lu_%s_mfc.bin", NFC_CAPTURE_DIR, millis()+1, safeUid);
+  File bf = SD.open(bpath, FILE_WRITE);
+  if (bf) { bf.write((const uint8_t*)&mc, sizeof(mc)); bf.close(); }
+
+  Serial.printf("[SD] Mifare saved: %s\n", jpath);
+  triggerReaction(MOOD_SUCCESS, "Card saved", mc.uid);
+}
+
+// Load saved Mifare binary back into dest struct.
+bool nfcLoadMifare(const char* binPath, NfcMifareCard& dest) {
+  File f = SD.open(binPath);
+  if (!f || f.size() != sizeof(NfcMifareCard)) { if (f) f.close(); return false; }
+  f.read((uint8_t*)&dest, sizeof(NfcMifareCard));
+  f.close();
+  return dest.valid;
+}
+
+// Populate saved list from SD (binary sidecars only).
+void nfcLoadSavedList() {
+  nfcSavedCount = 0;
+  if (!sdAvailable) return;
+  File dir = SD.open(NFC_CAPTURE_DIR);
+  if (!dir) return;
+  while (nfcSavedCount < NFC_SAVED_MAX) {
+    File entry = dir.openNextFile();
+    if (!entry) break;
+    const char* entryPath = entry.path();
+    const char* rawName = entry.name();
+    const char* name = strrchr(rawName, '/');
+    name = name ? name + 1 : rawName;
+    if (strstr(name, "_mfc.bin")) {
+      if (entryPath && entryPath[0] == '/')
+        snprintf(nfcSavedPaths[nfcSavedCount], 56, "%s", entryPath);
+      else
+        snprintf(nfcSavedPaths[nfcSavedCount], 56, "%s/%s", NFC_CAPTURE_DIR, name);
+      // Label: extract UID-like part between first _ and _mfc
+      const char* us = strchr(name, '_');
+      const char* ue = strstr(name, "_mfc");
+      if (us && ue && ue > us+1) {
+        size_t l = min((size_t)(ue - us - 1), (size_t)19);
+        strncpy(nfcSavedLabels[nfcSavedCount], us+1, l);
+        nfcSavedLabels[nfcSavedCount][l] = '\0';
+      } else {
+        strncpy(nfcSavedLabels[nfcSavedCount], name, 19);
+        nfcSavedLabels[nfcSavedCount][19] = '\0';
+      }
+      nfcSavedCount++;
+    }
+    entry.close();
+  }
+  dir.close();
+}
+
+// PN532 card emulation. Uses lib/PN532Custom/ AsTargetUID() — caller-supplied UID.
+// Returns true when an external reader has selected the emulated card.
+// Caveat: only first 3 UID bytes are emulated; 4th = BCC = uid[0]^uid[1]^uid[2].
+// Most cheap UID-only readers don't validate uid[3] strictly → works for elevators.
+// Sector-auth readers reject — fall back to magic card write path.
+bool nfcEmulateStep(const NfcMifareCard& src) {
+  if (!src.valid || src.uidLen != 4) return false;
+  uint8_t sak = src.sak ? src.sak : 0x08;
+  return nfc532.AsTargetUID(src.uidRaw, sak) == 1;
+}
+
+// Write a dumped Mifare card onto a magic (CUID) blank card placed on the reader.
+// Returns true only when every dumped block is written.
+bool nfcWriteToMagicCard(const NfcMifareCard& src) {
+  if (!src.valid || src.uidLen != 4) {
+    snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Invalid source");
+    return false;
+  }
+  uint8_t uid[7]; uint8_t uidLen = 0;
+  snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Present blank card");
+  if (!nfc532.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLen, 3000) || uidLen != 4) {
+    snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "No target card");
+    return false;
+  }
+
+  snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Writing...");
+  int written = 0;
+  int expected = 0;
+  bool cardActive = true;
+  uint8_t blankKey[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+  for (uint8_t sector = 0; sector < MIFARE_SECTOR_COUNT; sector++) {
+    if (!src.sectorUnlocked[sector]) continue;
+    expected += 4;
+
+    if (!cardActive) {
+      if (!nfc532.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLen, 500)) {
+        snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Card lost s%u", sector);
+        return false;
+      }
+      cardActive = true;
+    }
+
+    if (!nfc532.mifareclassic_AuthenticateBlock(uid, uidLen, sector*4+3, 0, blankKey)) {
+      cardActive = false;
+      Serial.printf("[MIFARE-WRITE] s%u auth fail on target\n", sector);
+      continue;
+    }
+
+    for (uint8_t b = 0; b < 4; b++) {
+      uint8_t blockNum = sector * 4 + b;
+      uint8_t data[16];
+      memcpy(data, src.blocks[blockNum], 16);
+      // Restore Key A in sector trailer from the key we used during dump
+      if (b == 3 && !src.sectorKeyIsB[sector])
+        memcpy(data, src.sectorKeyUsed[sector], 6);
+      if (nfc532.mifareclassic_WriteDataBlock(blockNum, data)) written++;
+      else Serial.printf("[MIFARE-WRITE] block %u fail\n", blockNum);
+    }
+  }
+
+  if (expected > 0 && written == expected)
+    snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "%d blk written", written);
+  else if (written > 0)
+    snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Partial %d/%d blk", written, expected);
+  else
+    snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Write failed");
+  return expected > 0 && written == expected;
+}
+
 void maskSecret(const char* in, char* out, size_t outSize) {
   if (!outSize) return;
   size_t len = strlen(in);
@@ -2888,7 +3207,13 @@ void IRAM_ATTR clientScanCB(void* buf, wifi_promiscuous_pkt_type_t type) {
 
 // === PROMISCUOUS HELPERS ===
 void startPromiscuous(wifi_promiscuous_cb_t cb) {
-  WiFi.mode(WIFI_STA); WiFi.disconnect(); delay(50);
+  if (etActive) {
+    WiFi.mode(WIFI_AP_STA);
+  } else {
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+  }
+  delay(50);
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_promiscuous_rx_cb(cb);
 }
@@ -3038,23 +3363,8 @@ void etSetupWebServer() {
 // DRAWING HELPERS
 // ============================================================
 
-const char* menuHints[] = {
-  "Find lab APs",
-  "2.4G channel load",
-  "Nearby phones",
-  "Watch attacks",
-  "Run F5 demo",
-  "Beacon density",
-  "Clone AP + portal",
-  "Portal look",
-  "433MHz capture",
-  "Read card UID",
-  "IR learn/send",
-  "Build identity"
-};
-
 const char* menuTags[] = {
-  "F4", "RF", "F4", "F5", "F5", "Wi", "F6", "UI", "S1", "S2", "S3", "ID"
+  "Wi", "RF", "NF", "IR", "ID"
 };
 
 MoodType menuMoodForIndex(int idx) {
@@ -3086,6 +3396,14 @@ void drawHeader(const char* title) {
 }
 
 void drawControls(const char* text) {
+  if (currentState != STATE_SUBGHZ &&
+      currentState != STATE_SUBGHZ_PICKER &&
+      currentState != STATE_SUBGHZ_FREQSCAN &&
+      currentState != STATE_SUBGHZ_ROLLJAM &&
+      currentState != STATE_NFC_MENU &&
+      currentState != STATE_NFC_SAVED) {
+    return;
+  }
   display.setDrawColor(1);
   display.drawBox(0, 56, 128, 8);
   display.setDrawColor(0);
@@ -3140,34 +3458,53 @@ void drawLiveDots(int x, int y) {
 void drawMenu() {
   display.clearBuffer();
   drawHeader("VariOne");
-  drawMascot(14, 31, menuMoodForIndex(menuIndex));
-  display.drawVLine(31, 16, 39);
   display.setFont(u8g2_font_5x8_tr);
-  char pos[14]; snprintf(pos, sizeof(pos), "%02d/%02d", menuIndex + 1, menuCount);
-  display.drawStr(36, 22, pos);
-  display.drawStr(70, 22, menuTags[menuIndex]);
-  int startIdx = menuIndex - 1;
+  int startIdx = menuIndex - 2;
   if (startIdx < 0) startIdx = 0;
-  if (startIdx > menuCount - 3) startIdx = max(0, menuCount - 3);
-  for (int i = 0; i < 3; i++) {
+  if (startIdx > menuCount - 5) startIdx = max(0, menuCount - 5);
+  for (int i = 0; i < 5; i++) {
     int idx = startIdx + i;
     if (idx >= menuCount) break;
-    int y = 34 + (i * 8);
+    int y = 21 + (i * 9);
     if (idx == menuIndex) {
-      display.drawBox(34, y - 7, 92, 8);
+      display.drawBox(0, y - 7, 128, 9);
       display.setDrawColor(0);
-      char line[22]; snprintf(line, sizeof(line), ">%.20s", menuItems[idx]);
-      display.drawStr(36, y, line);
+      char line[24]; snprintf(line, sizeof(line), "> %.18s", menuItems[idx]);
+      display.drawStr(3, y, line);
+      display.drawStr(112, y, menuTags[idx]);
       display.setDrawColor(1);
     } else {
-      char line[22]; snprintf(line, sizeof(line), " %.20s", menuItems[idx]);
-      display.drawStr(36, y, line);
+      char line[24]; snprintf(line, sizeof(line), "  %.18s", menuItems[idx]);
+      display.drawStr(3, y, line);
+      display.drawStr(112, y, menuTags[idx]);
     }
   }
-  display.setFont(u8g2_font_4x6_tr);
-  display.drawStr(36, 54, menuHints[menuIndex]);
-  drawScrollBar(startIdx, menuCount, 3);
-  drawControls("up/dn choose  ok enter");
+  drawScrollBar(startIdx, menuCount, 5);
+  display.sendBuffer();
+}
+
+void drawWifiMenu() {
+  display.clearBuffer();
+  drawHeader("Wi-Fi");
+  display.setFont(u8g2_font_5x8_tr);
+  if (wifiMenuIndex < wifiMenuScroll) wifiMenuScroll = wifiMenuIndex;
+  if (wifiMenuIndex >= wifiMenuScroll + 5) wifiMenuScroll = wifiMenuIndex - 4;
+  for (int row = 0; row < 5; row++) {
+    int idx = wifiMenuScroll + row;
+    if (idx >= wifiMenuCount) break;
+    int y = 21 + row * 9;
+    if (idx == wifiMenuIndex) {
+      display.drawBox(0, y - 7, 128, 9);
+      display.setDrawColor(0);
+      char line[24]; snprintf(line, sizeof(line), "> %.20s", wifiMenuItems[idx]);
+      display.drawStr(3, y, line);
+      display.setDrawColor(1);
+    } else {
+      char line[24]; snprintf(line, sizeof(line), "  %.20s", wifiMenuItems[idx]);
+      display.drawStr(3, y, line);
+    }
+  }
+  drawScrollBar(wifiMenuScroll, wifiMenuCount, 5);
   display.sendBuffer();
 }
 
@@ -3234,9 +3571,9 @@ void drawProbeSniffer() {
   drawHeader(hdr);
   if (probeCount == 0) {
     drawMascot(22, 32, MOOD_WORKING);
-    display.setFont(u8g2_font_6x10_tr); display.drawStr(48,31,"Listening");
-    drawLiveDots(53, 43);
-    display.setFont(u8g2_font_5x8_tr);  display.drawStr(48,53,"phone probe reqs");
+    display.setFont(u8g2_font_6x10_tr); display.drawStr(4,31,"Listening");
+    drawLiveDots(9, 43);
+    display.setFont(u8g2_font_5x8_tr);  display.drawStr(4,53,"phone probe reqs");
     drawControls("bk:stop"); display.sendBuffer(); return;
   }
   display.setFont(u8g2_font_5x8_tr);
@@ -3332,6 +3669,25 @@ void drawClientSelect() {
   }
   drawScrollBar(clientSelectScroll, totalRows, 4);
   drawControls("up/dn:mode ok:atk bk:back"); display.sendBuffer();
+}
+
+void drawDeauthConfirm() {
+  display.clearBuffer(); drawHeader("Confirm Deauth");
+  String name=wifiNets[deauthTargetIdx].ssid; if(!name.length()) name="(hidden)";
+  if(name.length()>15) name=name.substring(0,14)+"~";
+  display.setFont(u8g2_font_5x8_tr);
+  display.drawStr(4,23,name.c_str());
+  if(attackMode == DEAUTH_MODE_BROADCAST) display.drawStr(4,33,"mode: Broadcast");
+  else if(attackMode == DEAUTH_MODE_ALL_DISCOVERED) display.drawStr(4,33,"mode: All found");
+  else {
+    char mac[22]; snprintf(mac,sizeof(mac),"%02X:%02X:%02X:%02X:%02X:%02X",attackClientMAC[0],attackClientMAC[1],attackClientMAC[2],attackClientMAC[3],attackClientMAC[4],attackClientMAC[5]);
+    display.drawStr(2,33,mac);
+  }
+  drawMascot(108, 34, MOOD_ANGRY);
+  unsigned long held = deauthConfirmHoldStart ? millis() - deauthConfirmHoldStart : 0;
+  drawTinyProgress(4, 40, 78, constrain(held, 0UL, (unsigned long)DEAUTH_CONFIRM_HOLD_MS), DEAUTH_CONFIRM_HOLD_MS);
+  display.drawStr(4,55,"Hold OK to start");
+  drawControls("hold ok:start bk:cancel"); display.sendBuffer();
 }
 
 void drawDeauthAttack() {
@@ -3484,13 +3840,144 @@ void drawNFC() {
       display.drawStr(2, 35, nfcCard.type);
     else if (strlen(nfcCard.aid) > 0)
       display.drawStr(2, 35, nfcCard.aid);
-    // UID (line 3)
+    // Line 3: holder name or UID
     char uidLine[22];
     if (strlen(nfcCard.holder) > 0) snprintf(uidLine, sizeof(uidLine), "%.21s", nfcCard.holder);
     else snprintf(uidLine, sizeof(uidLine), "%.21s", nfcCard.uid);
-    display.drawStr(2, 48, uidLine);
+    display.drawStr(2, 45, uidLine);
+    // Line 4: ATC counter + tx log count
+    if (nfcAtc[0] || nfcAtc[1] || nfcTxLogCount > 0) {
+      char extra[22];
+      uint16_t atcVal = ((uint16_t)nfcAtc[0] << 8) | nfcAtc[1];
+      if (nfcTxLogCount > 0)
+        snprintf(extra, sizeof(extra), "ATC:%u  %dtx in log", atcVal, nfcTxLogCount);
+      else
+        snprintf(extra, sizeof(extra), "ATC:%u uses", atcVal);
+      display.drawStr(2, 55, extra);
+    }
   }
   drawControls("ok:clear  bk:back");
+  display.sendBuffer();
+}
+
+// ---- NFC sub-menu ----
+void drawNfcMenu() {
+  display.clearBuffer();
+  drawHeader("NFC");
+  display.setFont(u8g2_font_5x8_tr);
+  const char* items[] = {"Read Bank Card", "Read Access Card", "Saved Cards"};
+  for (int i = 0; i < 3; i++) {
+    int y = 20 + i * 13;
+    if (i == nfcMenuIdx) {
+      display.drawBox(0, y - 8, 128, 10); display.setDrawColor(0);
+    }
+    display.drawStr(4, y, items[i]);
+    if (i == nfcMenuIdx) display.setDrawColor(1);
+  }
+  drawMascot(104, 50, MOOD_THINKING);
+  drawControls("ok:sel  bk:back");
+  display.sendBuffer();
+}
+
+// ---- NFC Access (Mifare scan + emulate + write) ----
+void drawNfcAccess() {
+  display.clearBuffer();
+  drawHeader("NFC Access");
+  display.setFont(u8g2_font_5x8_tr);
+
+  switch (nfcAccessPhase) {
+    case NFC_ACC_SCANNING:
+      drawMascot(104, 33, MOOD_THINKING);
+      display.setFont(u8g2_font_6x10_tr);
+      display.drawStr(4, 28, "Hold card near");
+      display.drawStr(4, 42, "coil...");
+      drawLiveDots(8, 55);
+      drawControls("bk:back");
+      break;
+
+    case NFC_ACC_READY:
+      drawMascot(104, 22, mifareCard.sectorsRead > 0 ? MOOD_SUCCESS : MOOD_HAPPY);
+      display.drawStr(2, 20, mifareCard.uid);
+      display.drawStr(2, 30, mifareStatus);
+      display.setFont(u8g2_font_6x10_tr);
+      display.drawStr(2, 44, mifareCard.sectorsRead > 0 ? "Dump ready" : "UID ready");
+      display.setFont(u8g2_font_5x8_tr);
+      display.drawStr(2, 56, "Access card");
+      drawControls("bk:back");
+      break;
+
+    case NFC_ACC_EMULATING:
+      drawMascot(104, 33, nfcEmulateGotHit ? MOOD_SUCCESS : MOOD_WORKING);
+      display.setFont(u8g2_font_6x10_tr);
+      if (nfcEmulateGotHit) {
+        display.drawStr(4, 28, "Reader hit!");
+        display.setFont(u8g2_font_5x8_tr);
+        display.drawStr(2, 42, mifareCard.uid);
+      } else {
+        display.drawStr(4, 28, "Hold to reader");
+        display.setFont(u8g2_font_5x8_tr);
+        display.drawStr(2, 42, mifareCard.uid);
+        drawLiveDots(8, 55);
+      }
+      drawControls("ok:write  bk:stop");
+      break;
+
+    case NFC_ACC_WRITE_CONFIRM:
+      drawMascot(104, 22, MOOD_THINKING);
+      display.setFont(u8g2_font_5x8_tr);
+      display.drawStr(2, 20, "Magic card write");
+      display.drawStr(2, 30, "Ready");
+      display.drawStr(2, 40, mifareCard.uid);
+      drawControls("ok:write  bk:cancel");
+      break;
+
+    case NFC_ACC_WRITING:
+      drawMascot(104, 33, MOOD_WORKING);
+      display.setFont(u8g2_font_5x8_tr);
+      display.drawStr(2, 30, nfcWriteStatus);
+      drawLiveDots(8, 45);
+      drawControls("bk:cancel");
+      break;
+
+    case NFC_ACC_WRITE_DONE:
+      drawMascot(104, 33, MOOD_SUCCESS);
+      display.setFont(u8g2_font_6x10_tr);
+      display.drawStr(4, 30, "Done!");
+      display.setFont(u8g2_font_5x8_tr);
+      display.drawStr(2, 44, nfcWriteStatus);
+      drawControls("bk:back");
+      break;
+
+    case NFC_ACC_WRITE_FAIL:
+      drawMascot(104, 33, MOOD_FAIL);
+      display.setFont(u8g2_font_5x8_tr);
+      display.drawStr(2, 35, nfcWriteStatus);
+      drawControls("bk:back");
+      break;
+  }
+  display.sendBuffer();
+}
+
+// ---- Saved cards list ----
+void drawNfcSaved() {
+  display.clearBuffer();
+  drawHeader("Saved Cards");
+  display.setFont(u8g2_font_5x8_tr);
+  if (nfcSavedCount == 0) {
+    display.drawStr(4, 35, "No saved cards");
+    drawControls("bk:back");
+    display.sendBuffer(); return;
+  }
+  for (int i = 0; i < 4 && (nfcSavedScroll + i) < nfcSavedCount; i++) {
+    int idx = nfcSavedScroll + i;
+    int y = 18 + i * 11;
+    if (idx == nfcSavedIdx) {
+      display.drawBox(0, y - 8, 128, 10); display.setDrawColor(0);
+    }
+    display.drawStr(4, y, nfcSavedLabels[idx]);
+    if (idx == nfcSavedIdx) display.setDrawColor(1);
+  }
+  drawControls("ok:load  bk:back");
   display.sendBuffer();
 }
 
@@ -3723,16 +4210,16 @@ void drawSubGhzRollJam() {
 
 void drawAbout() {
   display.clearBuffer();
-  // Left side: text (stays within x=0-80 to avoid mascot)
+  drawHeader("Mascot");
+  mascotVisualAllowed = true;
+  drawMascot(104, 30, reactionMood);
+  mascotVisualAllowed = false;
   display.setFont(u8g2_font_6x10_tr);
-  display.drawStr(2, 14, "VariOne " FW_VERSION);
-  display.drawStr(2, 26, "Security");
-  display.drawStr(2, 38, "Multi-Tool");
+  display.drawStr(2, 25, "VariOne " FW_VERSION);
+  display.drawStr(2, 37, "Security");
+  display.drawStr(2, 49, "Multi-Tool");
   display.setFont(u8g2_font_5x8_tr);
-  display.drawStr(2, 50, "CIC Cairo");
-  display.drawStr(2, 60, "Dr.Ahmed Gaber");
-  // Right side: mascot (cx=100, safe from text)
-  drawMascot(104, 30, MOOD_HAPPY);
+  display.drawStr(2, 60, "CIC Cairo");
   display.sendBuffer();
 }
 
@@ -3751,18 +4238,17 @@ void runWifiScan() {
 
   unsigned long scanStart = millis();
   while (WiFi.scanComplete() < 0) {
-    // Animated waving mascot during scan
     display.clearBuffer();
     drawMascot(22, 28, MOOD_WAVING);
     display.setFont(u8g2_font_6x10_tr);
-    display.drawStr(50, 22, "Scanning");
-    display.drawStr(50, 34, "WiFi...");
+    display.drawStr(4, 22, "Scanning");
+    display.drawStr(4, 34, "WiFi...");
     // Animated dots
     int dots = (millis() / 400) % 4;
     char d[5] = "    ";
     for (int i = 0; i < dots; i++) d[i] = '.';
     display.setFont(u8g2_font_5x8_tr);
-    display.drawStr(50, 48, d);
+    display.drawStr(4, 48, d);
     display.sendBuffer();
 
     // Cancel on any button press or 'q' serial
@@ -3772,7 +4258,7 @@ void runWifiScan() {
       WiFi.scanDelete();
       WiFi.mode(WIFI_OFF);
       triggerReaction(MOOD_SAD, "Scan stopped", "going back");
-      currentState = STATE_MENU;
+      currentState = STATE_WIFI_MENU;
       return;
     }
 
@@ -3822,7 +4308,7 @@ void startPacketMonitor() {
   lastChannelHop=millis(); currentState=STATE_PACKET_MONITOR;
   triggerReaction(MOOD_WORKING, "Monitoring", "all channels");
 }
-void stopPacketMonitor() { DBG_PRINTF("[PKTMON] stop packets=%d\n", totalPackets); monitorActive=false; stopPromiscuous(); currentState=STATE_MENU; }
+void stopPacketMonitor() { DBG_PRINTF("[PKTMON] stop packets=%d\n", totalPackets); monitorActive=false; stopPromiscuous(); currentState=STATE_WIFI_MENU; }
 
 void startProbeSniffer() {
   DBG_PRINTLN("[PROBE] start");
@@ -3832,7 +4318,7 @@ void startProbeSniffer() {
   currentState=STATE_PROBE_SNIFF;
   triggerReaction(MOOD_THINKING, "Sniffing...", "listening");
 }
-void stopProbeSniffer() { DBG_PRINTF("[PROBE] stop found=%d\n", probeCount); probeActive=false; stopPromiscuous(); currentState=STATE_MENU; }
+void stopProbeSniffer() { DBG_PRINTF("[PROBE] stop found=%d\n", probeCount); probeActive=false; stopPromiscuous(); currentState=STATE_WIFI_MENU; }
 
 void startDeauthDetector() {
   DBG_PRINTLN("[DEAUTH-DETECT] start");
@@ -3843,7 +4329,7 @@ void startDeauthDetector() {
   currentState=STATE_DEAUTH_DETECT;
   triggerReaction(MOOD_THINKING, "Watching", "deauth frames");
 }
-void stopDeauthDetector() { DBG_PRINTF("[DEAUTH-DETECT] stop alerts=%d monitored=%d\n", deauthCount, totalMonitored); deauthActive=false; stopPromiscuous(); currentState=STATE_MENU; }
+void stopDeauthDetector() { DBG_PRINTF("[DEAUTH-DETECT] stop alerts=%d monitored=%d\n", deauthCount, totalMonitored); deauthActive=false; stopPromiscuous(); currentState=STATE_WIFI_MENU; }
 
 void enterDeauthTargetSelect() {
   DBG_PRINTF("[DEAUTH] target select wifiCount=%d\n", wifiCount);
@@ -3919,7 +4405,7 @@ void deauthTask(void*) {
   vTaskDelete(nullptr);
 }
 
-void startDeauthAttack() {
+void prepareDeauthAttackConfirm() {
   if (clientSelectIdx == 0) attackMode = DEAUTH_MODE_BROADCAST;
   else if (clientSelectIdx == 1) attackMode = DEAUTH_MODE_ALL_DISCOVERED;
   else attackMode = DEAUTH_MODE_SINGLE;
@@ -3929,10 +4415,16 @@ void startDeauthAttack() {
     currentState = STATE_DEAUTH_CLIENT_SELECT;
     return;
   }
+  if(attackMode == DEAUTH_MODE_SINGLE) memcpy(attackClientMAC,clients[clientSelectIdx-2].mac,6);
+  deauthConfirmHoldStart = 0;
+  currentState = STATE_DEAUTH_CONFIRM;
+  triggerReaction(MOOD_ANGRY, "Confirm", "hold OK");
+}
+
+void startDeauthAttack() {
   deauthFrameCount=0; deauthTxOk=0; deauthTxFail=0; deauthLastTxErr=ESP_OK; deauthTxErrLogCount=0;
   deauthAttackActive=true; deauthAttackStart=millis(); attackClientIdx=0;
   deauthReturnToPortal = etActive;
-  if(attackMode == DEAUTH_MODE_SINGLE) memcpy(attackClientMAC,clients[clientSelectIdx-2].mac,6);
   int targetCh=wifiNets[deauthTargetIdx].channel;
   char bssid[18]; macToString(wifiNets[deauthTargetIdx].bssid, bssid, sizeof(bssid));
   if (attackMode == DEAUTH_MODE_BROADCAST) {
@@ -3990,7 +4482,7 @@ void stopDeauthAttack() {
     drawEvilTwinRunning();
   } else {
     WiFi.mode(WIFI_OFF);
-    currentState=STATE_MENU;
+    currentState=STATE_WIFI_MENU;
   }
 }
 
@@ -4006,7 +4498,7 @@ void startBeaconSpam() {
 }
 void stopBeaconSpam() {
   DBG_PRINTF("[BEACON] stop sent=%d\n", beaconFrameCount);
-  beaconSpamActive=false; WiFi.softAPdisconnect(true); WiFi.mode(WIFI_OFF); currentState=STATE_MENU;
+  beaconSpamActive=false; WiFi.softAPdisconnect(true); WiFi.mode(WIFI_OFF); currentState=STATE_WIFI_MENU;
 }
 
 void enterEvilTwinTarget() {
@@ -4041,7 +4533,7 @@ void stopEvilTwin() {
   etActive=false; webServer.stop(); dnsServer.stop();
   WiFi.softAPdisconnect(true); WiFi.mode(WIFI_OFF);
   Serial.printf("[PORTAL] Stopped. Demo submissions: %d\n",etCredCount);
-  currentState=STATE_MENU;
+  currentState=STATE_WIFI_MENU;
 }
 
 // ============================================================
@@ -4056,6 +4548,25 @@ void handleInput(char input) {
       else if(input=='s'&&menuIndex<menuCount-1) menuIndex++;
       else if(input=='e') {
         switch(menuIndex) {
+          case 0: currentState=STATE_WIFI_MENU; wifiMenuIndex=0; wifiMenuScroll=0; triggerReaction(MOOD_THINKING, "Wi-Fi", "choose tool"); break;
+          case 1: currentState=STATE_SUBGHZ; startSubGhz(); return;
+          case 2: currentState=STATE_NFC_MENU; nfcMenuIdx=0; triggerReaction(MOOD_THINKING, "NFC", "choose mode"); break;
+          case 3: currentState=STATE_IR; triggerReaction(MOOD_THINKING, "IR Remote", "planned"); break;
+          case 4: currentState=STATE_ABOUT; triggerReaction(MOOD_HAPPY, "Mascot", FW_VERSION); break;
+        }
+      }
+      break;
+    case STATE_WIFI_MENU:
+      if(input=='w'&&wifiMenuIndex>0) {
+        wifiMenuIndex--;
+        if (wifiMenuIndex < wifiMenuScroll) wifiMenuScroll = wifiMenuIndex;
+      }
+      else if(input=='s'&&wifiMenuIndex<wifiMenuCount-1) {
+        wifiMenuIndex++;
+        if (wifiMenuIndex >= wifiMenuScroll + 5) wifiMenuScroll = wifiMenuIndex - 4;
+      }
+      else if(input=='e') {
+        switch(wifiMenuIndex) {
           case 0: runWifiScan(); return;
           case 1: startPacketMonitor(); return;
           case 2: startProbeSniffer(); return;
@@ -4064,17 +4575,14 @@ void handleInput(char input) {
           case 5: startBeaconSpam(); return;
           case 6: enterEvilTwinTarget(); return;
           case 7: currentState=STATE_PORTAL_THEME; triggerReaction(MOOD_THINKING, "Portal Theme", "choose look"); break;
-          case 8: currentState=STATE_SUBGHZ; startSubGhz(); return;
-          case 9: currentState=STATE_NFC; triggerReaction(MOOD_THINKING, "NFC Reader", "hold card"); break;
-          case 10: currentState=STATE_IR; triggerReaction(MOOD_THINKING, "IR Remote", "planned"); break;
-          case 11: currentState=STATE_ABOUT; triggerReaction(MOOD_HAPPY, "VariOne", FW_VERSION); break;
         }
       }
+      else if(input=='q') currentState=STATE_MENU;
       break;
     case STATE_WIFI_RESULTS:
       if(input=='w'&&wifiScroll>0) wifiScroll--;
       else if(input=='s'&&wifiScroll<wifiCount-4) wifiScroll++;
-      else if(input=='q') currentState=STATE_MENU;
+      else if(input=='q') currentState=STATE_WIFI_MENU;
       break;
     case STATE_PACKET_MONITOR:
       if(input=='q') stopPacketMonitor(); break;
@@ -4091,7 +4599,7 @@ void handleInput(char input) {
       if(input=='w'&&deauthTargetIdx>0) { deauthTargetIdx--; if(deauthTargetIdx<deauthTargetScroll) deauthTargetScroll=deauthTargetIdx; }
       else if(input=='s'&&deauthTargetIdx<wifiCount-1) { deauthTargetIdx++; if(deauthTargetIdx>=deauthTargetScroll+4) deauthTargetScroll=deauthTargetIdx-3; }
       else if(input=='e') startClientScan();
-      else if(input=='q') currentState=STATE_MENU;
+      else if(input=='q') currentState=STATE_WIFI_MENU;
       break;
     case STATE_DEAUTH_CLIENT_SCAN:
       if(input=='q') finishClientScan(); break;
@@ -4099,10 +4607,13 @@ void handleInput(char input) {
       int totalRows=clientCount+2;
       if(input=='w'&&clientSelectIdx>0) { clientSelectIdx--; if(clientSelectIdx<clientSelectScroll) clientSelectScroll=clientSelectIdx; }
       else if(input=='s'&&clientSelectIdx<totalRows-1) { clientSelectIdx++; if(clientSelectIdx>=clientSelectScroll+4) clientSelectScroll=clientSelectIdx-3; }
-      else if(input=='e') startDeauthAttack();
-      else if(input=='q') currentState=STATE_MENU;
+      else if(input=='e') prepareDeauthAttackConfirm();
+      else if(input=='q') currentState=STATE_WIFI_MENU;
       break;
     }
+    case STATE_DEAUTH_CONFIRM:
+      if(input=='q') { deauthConfirmHoldStart = 0; currentState=STATE_DEAUTH_CLIENT_SELECT; }
+      break;
     case STATE_DEAUTH_ATTACK:
       if(input=='q') stopDeauthAttack(); break;
     case STATE_BEACON_SPAM:
@@ -4111,7 +4622,7 @@ void handleInput(char input) {
       if(input=='w'&&etTargetIdx>0) { etTargetIdx--; if(etTargetIdx<etTargetScroll) etTargetScroll=etTargetIdx; }
       else if(input=='s'&&etTargetIdx<wifiCount-1) { etTargetIdx++; if(etTargetIdx>=etTargetScroll+4) etTargetScroll=etTargetIdx-3; }
       else if(input=='e') startEvilTwin();
-      else if(input=='q') currentState=STATE_MENU;
+      else if(input=='q') currentState=STATE_WIFI_MENU;
       break;
     case STATE_ET_RUNNING:
       if(input=='e') enterPortalDeauthFlow();
@@ -4129,9 +4640,9 @@ void handleInput(char input) {
       else if(input=='e') {
         Serial.printf("[PORTAL] theme=%s\n", portalThemeName(portalThemeIdx));
         triggerReaction(MOOD_SUCCESS, "Theme set", portalThemeName(portalThemeIdx));
-        currentState=STATE_MENU;
+        currentState=STATE_WIFI_MENU;
       }
-      else if(input=='q') currentState=STATE_MENU;
+      else if(input=='q') currentState=STATE_WIFI_MENU;
       break;
     case STATE_SUBGHZ:
       if(input=='q') { stopSubGhz(); currentState=STATE_MENU; }
@@ -4139,6 +4650,7 @@ void handleInput(char input) {
       else if(input=='1') setSubGhzTargetClass("fixed_code_car");
       else if(input=='2') setSubGhzTargetClass("fixed_code_gate");
       else if(input=='5') setSubGhzTargetClass("fixed_code_fan");
+      else if(input=='8') setSubGhzTargetClass("fixed_code_appliance");
       else if(input=='6') {
         // Quick-set 315 MHz — most Chinese ceiling fans use 315 MHz, not 433.92
         sgActiveFreqMHz = 315.0f;
@@ -4182,7 +4694,7 @@ void handleInput(char input) {
         sgAwaitReplayResult=false;
         Serial.printf("[CC1101] replay result=accepted target_class=%s observation=opened_or_triggered\n", sgTargetClass);
         saveSubGhzReplayResult("accepted", "opened_or_triggered");
-        triggerReaction(MOOD_SUCCESS, "Replay worked", "car/gate");
+        triggerReaction(MOOD_SUCCESS, "Replay worked", sgTargetClass);
       }
       else if(sgAwaitReplayResult && input=='i') {
         sgAwaitReplayResult=false;
@@ -4307,9 +4819,91 @@ void handleInput(char input) {
       else if(input=='q') currentState = STATE_SUBGHZ;
       break;
     case STATE_NFC:
-      if(input=='q') { nfcCard.valid=false; currentState=STATE_MENU; }
-      else if(input=='e') nfcCard.valid=false;  // ok: clear result
+      if(input=='q') { nfcCard.valid=false; currentState=STATE_NFC_MENU; }
+      else if(input=='e') nfcCard.valid=false;
       break;
+
+    case STATE_NFC_MENU:
+      if (input=='w' && nfcMenuIdx>0) nfcMenuIdx--;
+      else if (input=='s' && nfcMenuIdx<2) nfcMenuIdx++;
+      else if (input=='e') {
+        if (nfcMenuIdx==0) {
+          nfcCard.valid=false;
+          currentState=STATE_NFC;
+          triggerReaction(MOOD_THINKING, "Bank Card", "hold card");
+        } else if (nfcMenuIdx==1) {
+          memset(&mifareCard, 0, sizeof(mifareCard));
+          mifareReady=false; nfcAccessPhase=NFC_ACC_SCANNING;
+          nfcEmulateGotHit=false; nfcAccessLastScan=0;
+          snprintf(mifareStatus, sizeof(mifareStatus), "Hold card...");
+          currentState=STATE_NFC_ACCESS;
+          triggerReaction(MOOD_THINKING, "Access Card", "hold card");
+        } else {
+          nfcLoadSavedList();
+          nfcSavedIdx=0; nfcSavedScroll=0;
+          currentState=STATE_NFC_SAVED;
+        }
+      }
+      else if (input=='q') currentState=STATE_MENU;
+      break;
+
+    case STATE_NFC_ACCESS:
+      switch (nfcAccessPhase) {
+        case NFC_ACC_SCANNING:
+          if (input=='q') { currentState=STATE_NFC_MENU; }
+          break;
+        case NFC_ACC_READY:
+          if (input=='e') { // emulate
+            nfcEmulateGotHit=false; nfcEmulateLastTry=0;
+            nfcAccessPhase=NFC_ACC_EMULATING;
+            triggerReaction(MOOD_WORKING, "Emulating", mifareCard.uid);
+          } else if (input=='w') { // save
+            nfcSaveMifare(mifareCard);
+          } else if (input=='s') { // write to magic card
+            snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Present blank card");
+            nfcAccessPhase=NFC_ACC_WRITE_CONFIRM;
+          } else if (input=='q') {
+            currentState=STATE_NFC_MENU;
+          }
+          break;
+        case NFC_ACC_EMULATING:
+          if (input=='e') { // switch to write
+            snprintf(nfcWriteStatus, sizeof(nfcWriteStatus), "Present blank card");
+            nfcAccessPhase=NFC_ACC_WRITE_CONFIRM;
+          } else if (input=='q') {
+            nfcAccessPhase=NFC_ACC_READY;
+          }
+          break;
+        case NFC_ACC_WRITE_CONFIRM:
+          if (input=='e') { nfcAccessPhase=NFC_ACC_WRITING; }
+          else if (input=='q') { nfcAccessPhase=NFC_ACC_EMULATING; }
+          break;
+        case NFC_ACC_WRITE_DONE: case NFC_ACC_WRITE_FAIL:
+          if (input=='q') { nfcAccessPhase=NFC_ACC_READY; }
+          break;
+        default: break;
+      }
+      break;
+
+    case STATE_NFC_SAVED:
+      if (input=='w' && nfcSavedIdx>0) {
+        nfcSavedIdx--;
+        if (nfcSavedIdx < nfcSavedScroll) nfcSavedScroll=nfcSavedIdx;
+      } else if (input=='s' && nfcSavedIdx<nfcSavedCount-1) {
+        nfcSavedIdx++;
+        if (nfcSavedIdx >= nfcSavedScroll+4) nfcSavedScroll=nfcSavedIdx-3;
+      } else if (input=='e' && nfcSavedCount>0) {
+        // Load binary sidecar → go to access/emulate flow
+        if (nfcLoadMifare(nfcSavedPaths[nfcSavedIdx], mifareCard)) {
+          mifareReady=true;
+          nfcEmulateGotHit=false; nfcEmulateLastTry=0;
+          nfcAccessPhase=NFC_ACC_EMULATING;
+          currentState=STATE_NFC_ACCESS;
+          triggerReaction(MOOD_WORKING, "Emulating", mifareCard.uid);
+        }
+      } else if (input=='q') currentState=STATE_NFC_MENU;
+      break;
+
     case STATE_IR: case STATE_ABOUT:
       if(input=='q') currentState=STATE_MENU; break;
     default: break;
@@ -4332,7 +4926,9 @@ void setup() {
   Wire.begin(21, 22);
   display.begin();
   display.clearBuffer();
+  mascotVisualAllowed = true;
   drawMascot(22, 28, MOOD_WORKING);
+  mascotVisualAllowed = false;
   display.setFont(u8g2_font_6x10_tr);
   display.drawStr(46, 28, "Booting");
   display.drawStr(46, 42, FW_VERSION);
@@ -4372,7 +4968,9 @@ void loop() {
     static unsigned long lastSleepDraw = 0;
     if (millis() - lastSleepDraw > 100) {
       display.clearBuffer();
+      mascotVisualAllowed = true;
       drawMascot(50, 30, MOOD_SLEEPING);
+      mascotVisualAllowed = false;
       display.setFont(u8g2_font_6x10_tr);
       display.drawStr(10, 8,  "z");
       display.drawStr(18, 5,  "z");
@@ -4412,6 +5010,19 @@ void loop() {
 
   if (currentState==STATE_DEAUTH_CLIENT_SCAN && clientScanActive)
     if (millis()-clientScanStart>=CLIENT_SCAN_MS) finishClientScan();
+
+  if (currentState==STATE_DEAUTH_CONFIRM) {
+    if (digitalRead(BTN_RIGHT) == LOW) {
+      if (deauthConfirmHoldStart == 0) deauthConfirmHoldStart = millis();
+      if (millis() - deauthConfirmHoldStart >= DEAUTH_CONFIRM_HOLD_MS) {
+        deauthConfirmHoldStart = 0;
+        startDeauthAttack();
+        return;
+      }
+    } else {
+      deauthConfirmHoldStart = 0;
+    }
+  }
 
   if (currentState==STATE_DEAUTH_ATTACK) {
     if (deauthAttackActive && millis() - deauthAttackStart >= DEAUTH_ATTACK_MS) {
@@ -4479,6 +5090,42 @@ void loop() {
     nfcLastScan = millis();
   }
 
+  // Mifare access card — scan phase
+  if (currentState == STATE_NFC_ACCESS && nfcReady &&
+      nfcAccessPhase == NFC_ACC_SCANNING && millis() - nfcAccessLastScan > 1200) {
+    if (nfcReadMifare(mifareCard)) {
+      mifareReady = true;
+      nfcAccessPhase = NFC_ACC_READY;
+      if (mifareCard.sectorsRead > 0)
+        triggerReaction(MOOD_SUCCESS, "Dumped", mifareStatus);
+      else
+        triggerReaction(MOOD_HAPPY, "Card UID", mifareCard.uid);
+    }
+    nfcAccessLastScan = millis();
+  }
+
+  // Mifare emulation — call TgInitAsTarget with 300 ms timeout each tick
+  if (currentState == STATE_NFC_ACCESS && nfcReady &&
+      nfcAccessPhase == NFC_ACC_EMULATING && !nfcEmulateGotHit &&
+      millis() - nfcEmulateLastTry > 350) {
+    if (nfcEmulateStep(mifareCard)) {
+      nfcEmulateGotHit = true;
+      triggerReaction(MOOD_SUCCESS, "Reader hit!", mifareCard.uid);
+    }
+    nfcEmulateLastTry = millis();
+  }
+
+  // Mifare write to magic card
+  if (currentState == STATE_NFC_ACCESS && nfcAccessPhase == NFC_ACC_WRITING) {
+    if (nfcWriteToMagicCard(mifareCard)) {
+      nfcAccessPhase = NFC_ACC_WRITE_DONE;
+      triggerReaction(MOOD_SUCCESS, "Written!", nfcWriteStatus);
+    } else {
+      nfcAccessPhase = NFC_ACC_WRITE_FAIL;
+      triggerReaction(MOOD_FAIL, "Write fail", nfcWriteStatus);
+    }
+  }
+
   if (currentState==STATE_SUBGHZ && sgListening && cc1101Ok && sgArmed) {
     uint8_t gdoNow = digitalRead(4);
     int rssiNow = ELECHOUSE_cc1101.getRssi();
@@ -4507,19 +5154,24 @@ void loop() {
       currentState!=STATE_ET_RUNNING) {
     switch (currentState) {
       case STATE_MENU:                 drawMenu(); break;
+      case STATE_WIFI_MENU:            drawWifiMenu(); break;
       case STATE_WIFI_RESULTS:         drawWifiResults(); break;
       case STATE_PROBE_SNIFF:          drawProbeSniffer(); break;
       case STATE_DEAUTH_DETECT:        drawDeauthDetector(); break;
       case STATE_DEAUTH_TARGET:        drawDeauthTargetSelect(); break;
       case STATE_DEAUTH_CLIENT_SCAN:   drawClientScan(); break;
       case STATE_DEAUTH_CLIENT_SELECT: drawClientSelect(); break;
+      case STATE_DEAUTH_CONFIRM:       drawDeauthConfirm(); break;
       case STATE_ET_TARGET:            drawEvilTwinTarget(); break;
       case STATE_PORTAL_THEME:         drawPortalTheme(); break;
       case STATE_SUBGHZ:        drawSubGhz(); break;
       case STATE_SUBGHZ_PICKER: drawSubGhzPicker(); break;
       case STATE_SUBGHZ_FREQSCAN: drawSubGhzFreqScan(); break;
       case STATE_SUBGHZ_ROLLJAM:  drawSubGhzRollJam(); break;
-      case STATE_NFC:     drawNFC(); break;
+      case STATE_NFC:          drawNFC(); break;
+      case STATE_NFC_MENU:     drawNfcMenu(); break;
+      case STATE_NFC_ACCESS:   drawNfcAccess(); break;
+      case STATE_NFC_SAVED:    drawNfcSaved(); break;
       case STATE_IR:      drawPlaceholder("IR Remote",  "Coming soon..."); break;
       case STATE_ABOUT:   drawAbout(); break;
       default: break;

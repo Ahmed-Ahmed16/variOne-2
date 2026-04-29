@@ -55,6 +55,26 @@ static bool apdu(const char* label, const uint8_t* tx, uint8_t txLen, uint8_t* r
   return ok;
 }
 
+static void mifareClassicGate(const uint8_t* uid, uint8_t uidLen) {
+  uint8_t sak = nfc.getLastPassiveTargetSak();
+  bool looksClassic = uidLen == 4 && (sak & 0x08);
+  Serial.printf("[PN532-TEST] MIFARE gate: uidLen=%u sak=0x%02X classic=%s\n",
+                uidLen, sak, looksClassic ? "yes" : "no");
+  if (!looksClassic) return;
+
+  uint8_t defaultKey[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+  bool authOk = nfc.mifareclassic_AuthenticateBlock((uint8_t*)uid, uidLen, 0, 0, defaultKey);
+  Serial.printf("[PN532-TEST] MIFARE auth block0 keyA=FFFFFFFFFFFF %s\n",
+                authOk ? "PASS" : "FAIL");
+  if (!authOk) return;
+
+  uint8_t block0[16] = {0};
+  bool readOk = nfc.mifareclassic_ReadDataBlock(0, block0);
+  Serial.printf("[PN532-TEST] MIFARE read block0 %s", readOk ? "PASS " : "FAIL");
+  if (readOk) printHex(block0, sizeof(block0));
+  Serial.println();
+}
+
 static void shallowEmvProbe() {
   uint8_t rsp[96];
   uint8_t rspLen = sizeof(rsp);
@@ -139,7 +159,9 @@ static void pollCard() {
 
   Serial.print("[PN532-TEST] card UID=");
   printHex(uid, uidLen);
-  Serial.printf(" uidLen=%u\n", uidLen);
+  Serial.printf(" uidLen=%u ATQA=0x%04X SAK=0x%02X\n",
+                uidLen, nfc.getLastPassiveTargetAtqa(), nfc.getLastPassiveTargetSak());
+  mifareClassicGate(uid, uidLen);
   if (emvProbe && nfc.inListPassiveTarget()) shallowEmvProbe();
 }
 

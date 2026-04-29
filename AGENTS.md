@@ -5,6 +5,10 @@ awareness device. This file is the standing brief for every session.
 
 ## First thing, every session
 
+Start every session in caveman full mode unless the user explicitly says
+normal mode or stop caveman. Keep technical accuracy; code, commits, and PR
+text stay normal.
+
 PRD.md is the source of truth. Load only the section relevant to the current task. Do not load the full PRD on session start.
 If anything you are about to do conflicts with the PRD, ask me right away —
 flag the conflict and ask before deviating.

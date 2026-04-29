@@ -628,6 +628,7 @@ This split keeps the portal responsive while deauth runs at full rate. FreeRTOS 
 - **2.4 GHz only.** ESP32-WROOM-32D radio covers 2.4 GHz ISM band only. 5 GHz APs cannot be scanned, deauthed, or cloned.
 - **WPA3 / PMF targets are immune.** See §9.5 reality check. Not a firmware gap — hardware constraint. Lab AP must be WPA2 + PMF off.
 - **No BadUSB / USB HID emulation.** ESP32-WROOM-32D has no USB OTG hardware. USB-C connector is UART-bridge only. BadUSB requires ESP32-S2/S3 or a dedicated co-processor (DigiSpark/RP2040). Out of scope for this project.
+- **No real-internet bridging through VariPortal (NAPT) on stock arduino-esp32.** The Arduino-ESP32 prebuilt SDK does **not** define `CONFIG_LWIP_IPV4_NAPT` (verified against `framework-arduinoespressif32` `tools/sdk/esp32/dio_qspi/include/sdkconfig.h`). The lwIP `lwip_napt.h` header is shipped, but `IP_NAPT` resolves to `0`, so `ip_napt_enable()` is a no-op. Bridging the SoftAP clients to the operator's phone-hotspot upstream therefore requires either (a) rebuilding arduino-esp32 with `CONFIG_LWIP_IPV4_NAPT=y` and `CONFIG_LWIP_IP_FORWARD=y`, or (b) switching the project to ESP-IDF for that build. Until then, VariPortal stays **captive-only** (DNS hijack to local 192.168.4.1, no upstream). Out of scope for MVP demo.
 
 ### 9.7 F7 — SD card persistence
 
@@ -861,6 +862,46 @@ The PAN is **never written to the file in clear** — only masked. Cardholder na
   "sha1": "..."
 }
 ```
+
+### 11.8 VariPortal theme manifest (`/portal-themes/<name>/theme.json`)
+
+Per-theme manifest read by `loadSdPortalThemes()` when an SD theme directory is enumerated. The manifest is **optional**: a theme directory containing only `index.html` remains valid (loader falls back to directory name and built-in defaults). When `theme.json` is present, the loader uses its fields to drive the menu label, the SoftAP SSID prefill, the same-channel deauth coupling, and the credential-field whitelist for `wifi_portal_submission` capture.
+
+```json
+{
+  "schema": 1,
+  "name": "CIC Portal",
+  "target": "CIC New Cairo guest Wi-Fi",
+  "ssid_hint": "CIC-WiFi",
+  "channel_hint": 6,
+  "credential_fields": ["username", "password"],
+  "assets": ["index.html", "style.css", "logo.png"],
+  "author": "VariOne ops",
+  "version": "1.0",
+  "notes": "Authorized under NDA — CIC environment only"
+}
+```
+
+**Field rules.**
+
+| Field | Type | Required | Meaning / loader behavior |
+|---|---|---|---|
+| `schema` | int | yes | Manifest schema version. Current = `1`. Loader rejects unknown values. |
+| `name` | string ≤23 chars | yes | Menu label. Truncated to OLED width if longer. |
+| `target` | string ≤63 chars | yes | Operator-facing description of what this theme reproduces. Logged with each portal submission for audit. |
+| `ssid_hint` | string ≤32 chars | no | Prefilled SoftAP SSID in the VariPortal start screen. Operator may override. |
+| `channel_hint` | int 1–11 | no | Prefilled channel for SoftAP and same-channel deauth coupling (PRD §9.6.1). Operator may override. Channels outside 1–11 are ignored. |
+| `credential_fields` | string[] ≤4 entries, each ≤16 chars | no | Whitelist of HTML form field names that the credential handler will accept and log. Default `["username","password"]`. Unlisted fields are dropped. |
+| `assets` | string[] ≤8 entries, each ≤32 chars | no | Relative file paths the theme expects to be present in its directory. Loader logs (does not fail) on missing assets so the operator sees mismatches at scan time. |
+| `author` | string ≤32 chars | no | Free text. Surfaced only in serial log. |
+| `version` | string ≤8 chars | no | Free text. Surfaced only in serial log. |
+| `notes` | string ≤128 chars | no | Free text. Surfaced only in serial log. |
+
+**Hard rules.**
+
+- Theme manifests are **read-only on the device.** Firmware never writes `theme.json`.
+- The captured `pass` field is masked at the parser per the global hard rule. `credential_fields` does **not** override masking — it controls *which* fields are accepted, not how they are stored.
+- A manifest with `schema != 1` is skipped with a serial warning so future versions can land on hardware safely.
 
 ---
 
