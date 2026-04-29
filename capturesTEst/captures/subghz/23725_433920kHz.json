@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-23725",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "data_rate_bps": 2400,
+  "target_class": "code_type_check",
+  "pair_id": 19453,
+  "capture_index": 1,
+  "rssi_dbm": -74,
+  "floor_dbm": -74,
+  "start_level": 1,
+  "analysis": {
+    "capture_quality": "full",
+    "previous_similarity_pct": -1,
+    "previous_avg_delta_us": 0,
+    "dynamic_candidate": false,
+    "protocol_guess": "static_or_unknown_ook_candidate",
+    "decoded_protocol": "unknown",
+    "decoded_bits": "",
+    "comparison_verdict": "needs_second_capture",
+    "security_verdict": "unknown_requires_two_capture_comparison"
+  },
+  "edges_us": [132,34686,130,245,100,1629,99,928,24,17213,100,100,24,426,105,521,24,100,24,17580,24,728,75,49,150,2906,49,24,74,12024,74,74,76,926,74,552,50,1554,299,250,775,351,199,175,1130,100,48,126,24,375,802,101,551,74,50,250,175,75,225,274,24,74,125,74,876,201,25,225,50,74,73,74,74,2605,50,1928,74,2777,200,324,49,75,76,275,1453,101,11331,249,24,24,124,125,302,99,377,327,75,224,100,75,225,50,499,200,24,225,74,250,25,25,24,75,299,125,199,24,877,150,199,74,326,125,14338,50,75,50,1127,50,500,25,652,24,1177,101],
+  "sha1": "074b74b7561b09189126885b8aa5f5cf7cfe7ce3"
+}

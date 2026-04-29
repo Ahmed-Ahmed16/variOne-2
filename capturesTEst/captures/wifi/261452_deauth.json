@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "type": "wifi_deauth_session",
+  "captured_at": "uptime-ms-261524",
+  "target_ssid": "WE_H",
+  "target_bssid": "B8:3A:08:FC:DE:66",
+  "channel": 1,
+  "mode": "all_discovered",
+  "target": "all-discovered",
+  "frames_sent": 516,
+  "tx_ok": 0,
+  "tx_fail": 516,
+  "sha1": "54eea2fef781fc3026ab53624d39dd1e6aeed4e8"
+}

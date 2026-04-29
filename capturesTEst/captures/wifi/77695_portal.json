@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "type": "wifi_portal_submission",
+  "captured_at": "uptime-ms-77757",
+  "user": "Test",
+  "pass_masked": "*******",
+  "sha1": "622d117a85c1c4d336368027a57d7429f959910d"
+}

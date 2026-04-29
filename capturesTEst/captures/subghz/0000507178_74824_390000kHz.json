@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "seq": 507178,
+  "captured_at": "uptime-ms-74824",
+  "freq_hz": 390000000,
+  "modulation": "OOK",
+  "data_rate_bps": 2400,
+  "target_class": "unknown",
+  "pair_id": 0,
+  "capture_index": 1,
+  "rssi_dbm": -74,
+  "floor_dbm": -74,
+  "start_level": 1,
+  "analysis": {
+    "capture_quality": "full",
+    "previous_similarity_pct": -1,
+    "previous_avg_delta_us": 0,
+    "dynamic_candidate": false,
+    "protocol_guess": "static_or_unknown_ook_candidate",
+    "decoded_protocol": "unknown",
+    "decoded_bits": "",
+    "comparison_verdict": "needs_second_capture",
+    "security_verdict": "unknown_requires_two_capture_comparison"
+  },
+  "edges_us": [101,918,291,928,316,933,295,928,931,295,332,916,308,920,921,311,319,913,921,303,323,920,309,9221,315,906,326,922,307,916,934,320,302,929,919,311,916,304,923,323,933,292,934,298,328,928,919,311,319,915,323,900,333,920,311,918,312,927,913,310,319,912,319,930,932,295,333,893,940,298,328,926,295,9214,338,891,338,895,337,906,923,310,318,912,946,301,925,295,933,318,937,296,924,309,296,935,917,305,323,922,310,919,310,917,328,925,318,913,918,304,321,913,337,916,914,307,322,908,943,312,296,929,304],
+  "sha1": "325dfbc10c4688714bba3103b71922da1a1dc144"
+}

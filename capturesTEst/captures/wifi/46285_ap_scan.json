@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "type": "wifi_ap_scan",
+  "captured_at": "uptime-ms-46309",
+  "count": 11,
+  "aps": [
+    {"ssid":"WE_H","bssid":"B8:3A:08:FC:DE:66","rssi_dbm":-52,"channel":1,"encryption":3},
+    {"ssid":"Aya","bssid":"B0:39:56:6D:9F:69","rssi_dbm":-77,"channel":8,"encryption":4},
+    {"ssid":"WE_617DDA","bssid":"80:2D:1A:61:7D:DA","rssi_dbm":-88,"channel":8,"encryption":4},
+    {"ssid":"jack 2","bssid":"8C:0D:76:45:20:B8","rssi_dbm":-90,"channel":2,"encryption":4},
+    {"ssid":"MOHAMED","bssid":"5C:A4:F4:A2:2C:10","rssi_dbm":-90,"channel":11,"encryption":3},
+    {"ssid":"Hana","bssid":"12:D0:11:08:C8:43","rssi_dbm":-91,"channel":6,"encryption":3},
+    {"ssid":"OZ","bssid":"A2:57:0A:A5:A9:53","rssi_dbm":-92,"channel":3,"encryption":3},
+    {"ssid":"jack1","bssid":"8C:0D:76:3F:00:14","rssi_dbm":-93,"channel":11,"encryption":4},
+    {"ssid":"Home_VDSL_EXT","bssid":"14:EB:B6:3A:37:F0","rssi_dbm":-94,"channel":8,"encryption":3},
+    {"ssid":"MOHAMED_EXT","bssid":"90:9A:4A:1F:7A:89","rssi_dbm":-94,"channel":11,"encryption":3},
+    {"ssid":"My Home Network 2.4 GHz","bssid":"9C:69:D1:CF:2C:3C","rssi_dbm":-96,"channel":1,"encryption":4}
+  ],
+  "sha1": "7df6856b8c5fd32c82d5c2784481187c5e5cc856"
+}

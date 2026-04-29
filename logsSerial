@@ -1,0 +1,210 @@
+[BTN] key=q pin=14 t=32306
+[INPUT] state=0 key=q menu=10
+[BTN] key=q pin=14 t=32504
+[INPUT] state=0 key=q menu=10
+[BTN] key=q pin=14 t=32636
+[INPUT] state=0 key=q menu=10
+[BTN] key=w pin=26 t=32768
+[INPUT] state=0 key=w menu=10
+[BTN] key=w pin=26 t=32966
+[INPUT] state=0 key=w menu=9
+[BTN] key=w pin=26 t=33098
+[INPUT] state=0 key=w menu=8
+[BTN] key=w pin=26 t=33296
+[INPUT] state=0 key=w menu=7
+[BTN] key=w pin=26 t=33428
+[INPUT] state=0 key=w menu=6
+[BTN] key=w pin=26 t=33560
+[INPUT] state=0 key=w menu=5
+[BTN] key=w pin=26 t=33758
+[INPUT] state=0 key=w menu=4
+[BTN] key=w pin=26 t=33890
+[INPUT] state=0 key=w menu=3
+[BTN] key=w pin=26 t=34088
+[INPUT] state=0 key=w menu=2
+[BTN] key=w pin=26 t=34220
+[INPUT] state=0 key=w menu=1
+[BTN] key=e pin=32 t=34682
+[INPUT] state=0 key=e menu=0
+[WIFI-SCAN] start
+[WIFI-SCAN] found 7 AP(s)
+[WIFI-SCAN] #01 ssid="WE_H" bssid=B8:3A:08:FC:DE:66 rssi=-54 ch=1 enc=3
+[WIFI-SCAN] #02 ssid="Aya" bssid=B0:39:56:6D:9F:69 rssi=-78 ch=8 enc=4
+[WIFI-SCAN] #03 ssid="Sameh" bssid=20:E8:82:86:14:F4 rssi=-91 ch=1 enc=2
+[WIFI-SCAN] #04 ssid="jack 2" bssid=8C:0D:76:45:20:B8 rssi=-92 ch=2 enc=4
+[WIFI-SCAN] #05 ssid="WE41AF41" bssid=10:24:07:41:AF:50 rssi=-92 ch=5 enc=4
+[WIFI-SCAN] #06 ssid="Israa1" bssid=6C:67:EF:34:21:80 rssi=-92 ch=8 enc=3
+[WIFI-SCAN] #07 ssid="OZ" bssid=A2:57:0A:A5:A9:53 rssi=-93 ch=10 enc=3
+[SD] WiFi scan saved: /captures/wifi/41488_ap_scan.json
+[BTN] key=q pin=14 t=46800
+[INPUT] state=2 key=q menu=0
+[BTN] key=s pin=33 t=48253
+[INPUT] state=0 key=s menu=0
+[BTN] key=s pin=33 t=48781
+[INPUT] state=0 key=s menu=1
+[BTN] key=w pin=26 t=49639
+[INPUT] state=0 key=w menu=2
+[BTN] key=e pin=32 t=50101
+[INPUT] state=0 key=e menu=1
+[PKTMON] start
+[BTN] key=e pin=32 t=56326
+[INPUT] state=3 key=e menu=1
+[BTN] key=w pin=26 t=60821
+[INPUT] state=3 key=w menu=1
+[BTN] key=q pin=14 t=62760
+[INPUT] state=3 key=q menu=1
+[PKTMON] stop packets=342
+[BTN] key=e pin=32 t=65076
+[INPUT] state=0 key=e menu=1
+[PKTMON] start
+[BTN] key=q pin=14 t=65663
+[INPUT] state=3 key=q menu=1
+[PKTMON] stop packets=12
+[BTN] key=s pin=33 t=66064
+[INPUT] state=0 key=s menu=1
+[BTN] key=e pin=32 t=66460
+[INPUT] state=0 key=e menu=2
+[PROBE] start
+[BTN] key=q pin=14 t=80131
+[INPUT] state=4 key=q menu=2
+[PROBE] stop found=1
+[BTN] key=s pin=33 t=81457
+[INPUT] state=0 key=s menu=2
+[BTN] key=e pin=32 t=82975
+[INPUT] state=0 key=e menu=3
+[DEAUTH-DETECT] start
+[BTN] key=q pin=14 t=86277
+[INPUT] state=5 key=q menu=3
+[DEAUTH-DETECT] stop alerts=0 monitored=50
+[BTN] key=s pin=33 t=87141
+[INPUT] state=0 key=s menu=3
+[BTN] key=e pin=32 t=87537
+[INPUT] state=0 key=e menu=4
+[DEAUTH] target select wifiCount=7
+[BTN] key=e pin=32 t=88395
+[INPUT] state=6 key=e menu=4
+[CLIENT-SCAN] start ssid="WE_H" bssid=B8:3A:08:FC:DE:66 ch=1
+[CLIENT-SCAN] found 7 client(s)
+[CLIENT-SCAN] #01 mac=1C:90:FF:F8:21:7B
+[CLIENT-SCAN] #02 mac=CC:50:E3:53:18:78
+[CLIENT-SCAN] #03 mac=50:A7:2B:56:A1:BB
+[CLIENT-SCAN] #04 mac=F8:36:9B:62:88:D7
+[CLIENT-SCAN] #05 mac=34:3E:A4:DB:25:75
+[CLIENT-SCAN] #06 mac=A0:B7:65:4A:4B:20
+[CLIENT-SCAN] #07 mac=20:BB:BC:8C:9F:8E
+[SD] WiFi clients saved: /captures/wifi/98434_clients.json
+[BTN] key=e pin=32 t=102398
+[INPUT] state=8 key=e menu=4
+[DEAUTH] start ssid="WE_H" bssid=B8:3A:08:FC:DE:66 ch=1 mode=broadcast
+[DEAUTH] auto-stop after 15s safety window
+[DEAUTH] stopped frames=103 mode=broadcast
+[SD] Deauth session saved: /captures/wifi/117405_deauth.json
+[BTN] key=s pin=33 t=122773
+[INPUT] state=0 key=s menu=4
+[BTN] key=e pin=32 t=123698
+[INPUT] state=0 key=e menu=5
+[BEACON] start
+[BEACON] ssid="Spectrum Demo" ch=1 total=20 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=6 total=40 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=11 total=60 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=1 total=80 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=6 total=100 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=11 total=120 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=1 total=140 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=6 total=160 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=11 total=180 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=1 total=200 tx=OK
+[BEACON] ssid="Spectrum Demo" ch=6 total=220 tx=OK
+[BTN] key=q pin=14 t=133189
+[INPUT] state=10 key=q menu=5
+[BEACON] stop sent=231
+[BTN] key=s pin=33 t=133745
+[INPUT] state=0 key=s menu=5
+[BTN] key=e pin=32 t=134603
+[INPUT] state=0 key=e menu=6
+[VARIPORTAL] target select wifiCount=7
+[BTN] key=q pin=14 t=135395
+[INPUT] state=11 key=q menu=6
+[BTN] key=s pin=33 t=135725
+[INPUT] state=0 key=s menu=6
+[BTN] key=e pin=32 t=136055
+[INPUT] state=0 key=e menu=7
+[BTN] key=e pin=32 t=138431
+[INPUT] state=13 key=e menu=7
+[PORTAL] theme=Network Access
+[BTN] key=q pin=14 t=139146
+[INPUT] state=0 key=q menu=7
+[BTN] key=e pin=32 t=140004
+[INPUT] state=0 key=e menu=7
+[BTN] key=s pin=33 t=140466
+[INPUT] state=13 key=s menu=7
+[BTN] key=e pin=32 t=141192
+[INPUT] state=13 key=e menu=7
+[PORTAL] theme=Campus Lab
+[BTN] key=w pin=26 t=143669
+[INPUT] state=0 key=w menu=7
+[BTN] key=e pin=32 t=144065
+[INPUT] state=0 key=e menu=6
+[VARIPORTAL] target select wifiCount=7
+[BTN] key=e pin=32 t=144857
+[INPUT] state=11 key=e menu=6
+[HEAP] portal start before free=248280 min=208728 max=110580
+[PORTAL] SSID=WE_H ch=1 IP=192.168.4.1 theme=Campus Lab
+[HEAP] portal start after free=209556 min=208728 max=110580
+[HEAP] portal request free=205896 min=202676 max=110580
+[156513][W][WebServer.cpp:425] send(): content length is zero
+[BTN] key=q pin=14 t=170040
+[INPUT] state=12 key=q menu=6
+E (179288) wifi_init_default: netstack cb reg failed with 12308
+[PORTAL] Stopped. Demo submissions: 0
+[BTN] key=e pin=32 t=170919
+[INPUT] state=0 key=e menu=6
+[VARIPORTAL] target select wifiCount=7
+[BTN] key=q pin=14 t=171645
+[INPUT] state=11 key=q menu=6
+[BTN] key=s pin=33 t=172107
+[INPUT] state=0 key=s menu=6
+[BTN] key=s pin=33 t=172701
+[INPUT] state=0 key=s menu=7
+[BTN] key=e pin=32 t=174021
+[INPUT] state=0 key=e menu=8
+[CC1101] Sub-GHz screen start
+[CC1101] Noise floor: -54dBm
+[BTN] key=q pin=14 t=188909
+[INPUT] state=14 key=q menu=8
+[CC1101] Sub-GHz stop
+[BTN] key=s pin=33 t=189503
+[INPUT] state=0 key=s menu=8
+[BTN] key=e pin=32 t=190097
+[INPUT] state=0 key=e menu=9
+[NFC] Poll
+[NFC] No card
+[NFC] Poll
+[NFC] Poll
+[NFC] No card
+[NFC] Poll
+[NFC] Poll
+[NFC] No card
+[NFC] Poll
+[NFC] Poll
+[NFC] No card
+[NFC] Poll
+[NFC] UID=04:46:7D:92:94:61:80 type=MIFARE Ultralt network=
+[NFC] uidLen=7 emvProbe=off saved=yes
+[SD] NFC saved: /captures/nfc/198612_04-46-7D-92-94-61-80.json
+[BTN] key=e pin=32 t=203935
+[INPUT] state=15 key=e menu=9
+[NFC] Poll
+[NFC] No card
+[NFC] Poll
+[NFC] UID=04:41:5B:AA:76:74:80 type=MIFARE Ultralt network=
+[NFC] uidLen=7 emvProbe=off saved=yes
+[SD] NFC saved: /captures/nfc/205302_04-41-5B-AA-76-74-80.json
+[BTN] key=q pin=14 t=211673
+[INPUT] state=15 key=q menu=9
+[BTN] key=s pin=33 t=212333
+[INPUT] state=0 key=s menu=9
+[BTN] key=s pin=33 t=213125
+[INPUT] state=0 key=s menu=10
+[BTN] key=q pin=14 t=214511
+[INPUT] state=0 key=q menu=11

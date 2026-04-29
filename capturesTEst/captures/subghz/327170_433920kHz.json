@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-327170",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "data_rate_bps": 2400,
+  "target_class": "rolling_code_car_attempt",
+  "pair_id": 324802,
+  "capture_index": 1,
+  "rssi_dbm": -74,
+  "floor_dbm": -74,
+  "start_level": 1,
+  "analysis": {
+    "capture_quality": "good",
+    "previous_similarity_pct": -1,
+    "previous_avg_delta_us": 0,
+    "dynamic_candidate": false,
+    "protocol_guess": "static_or_unknown_ook_candidate",
+    "decoded_protocol": "unknown",
+    "decoded_bits": "",
+    "comparison_verdict": "needs_second_capture",
+    "security_verdict": "dynamic_replay_expected_rejected_interaction_only_possible"
+  },
+  "edges_us": [109,100,249,100,50,99,225,75,75,74,24,124,725,24,1126,24,2778,775,124,524,49,976,74,100,50,124,24,125,125,75,300,150,74,350,249,400,25,99,50,650,125,150,50,375,25,300,351,149,101,50,24,250,74,75,174,150,175,49,300,49,275,125,225,21759,49,250,25,124,49],
+  "sha1": "fb999561731ad3283a1c950b0bdc16cc6938e5ea"
+}

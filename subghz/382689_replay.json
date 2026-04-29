@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-382775",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "target_class": "unknown",
+  "result": "rejected",
+  "observation": "no_physical_response",
+  "source": "live",
+  "edges": 177,
+  "rssi_dbm": -74,
+  "security_verdict": "unknown_requires_two_capture_comparison",
+  "sha1": "d5e1aad1ae40f8986384d47275e083ff93ed7504"
+}

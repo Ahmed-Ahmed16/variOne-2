@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "type": "wifi_client_scan",
+  "captured_at": "uptime-ms-346039",
+  "target_ssid": "WE_H",
+  "target_bssid": "B8:3A:08:FC:DE:66",
+  "channel": 1,
+  "count": 9,
+  "clients": [
+    {"mac":"1C:90:FF:F8:21:7B"},
+    {"mac":"34:3E:A4:DB:25:75"},
+    {"mac":"CC:50:E3:53:18:78"},
+    {"mac":"A0:B7:65:4A:4B:20"},
+    {"mac":"F8:36:9B:62:88:D7"},
+    {"mac":"20:BB:BC:8C:9F:8E"},
+    {"mac":"50:A7:2B:56:A1:BB"},
+    {"mac":"36:1E:12:1F:57:EE"},
+    {"mac":"D4:1B:81:04:21:6D"}
+  ],
+  "sha1": "5cc4769656d76c5aebb011494806109014aa6e2f"
+}

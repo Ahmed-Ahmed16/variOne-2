@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "seq": 507177,
+  "captured_at": "uptime-ms-177423",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "target_class": "fixed_code_car",
+  "result": "rejected",
+  "observation": "no_physical_response",
+  "source": "live",
+  "edges": 50,
+  "rssi_dbm": -74,
+  "security_verdict": "static_replay_expected_if_capture_clean",
+  "sha1": "bea47fb0356ccfd4eb0f029b03b12d1d06d508cc"
+}

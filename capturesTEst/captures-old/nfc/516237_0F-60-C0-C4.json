@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-516256",
+  "type": "MIFARE Classic",
+  "uid": "0F:60:C0:C4",
+  "sak": "0x00",
+  "atqa": null,
+  "emv": {
+    "aid": null,
+    "pan_masked": null,
+    "expiry": null,
+    "name": null
+  },
+  "sha1": "1b6cfb68cc5ec010bbf1e36519d9342a3572ff6d"
+}

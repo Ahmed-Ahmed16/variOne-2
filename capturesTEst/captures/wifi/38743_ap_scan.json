@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "type": "wifi_ap_scan",
+  "captured_at": "uptime-ms-38824",
+  "count": 6,
+  "aps": [
+    {"ssid":"WE_H","bssid":"B8:3A:08:FC:DE:66","rssi_dbm":-56,"channel":1,"encryption":3},
+    {"ssid":"Aya","bssid":"B0:39:56:6D:9F:69","rssi_dbm":-83,"channel":8,"encryption":4},
+    {"ssid":"jack 2","bssid":"8C:0D:76:45:20:B8","rssi_dbm":-91,"channel":2,"encryption":4},
+    {"ssid":"Etisalat-7A0C","bssid":"E8:6E:44:F5:7A:0C","rssi_dbm":-92,"channel":5,"encryption":3},
+    {"ssid":"MOHAMED","bssid":"5C:A4:F4:A2:2C:10","rssi_dbm":-93,"channel":11,"encryption":3},
+    {"ssid":"Home_VDSL_EXT","bssid":"14:EB:B6:3A:37:F0","rssi_dbm":-94,"channel":8,"encryption":3}
+  ],
+  "sha1": "36741bc9891489932b83d0d25df2f74bd1b4d8ab"
+}

@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "seq": 507175,
+  "captured_at": "uptime-ms-138974",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "data_rate_bps": 2400,
+  "target_class": "fixed_code_car",
+  "pair_id": 100397,
+  "capture_index": 1,
+  "rssi_dbm": -74,
+  "floor_dbm": -74,
+  "start_level": 0,
+  "analysis": {
+    "capture_quality": "partial",
+    "previous_similarity_pct": -1,
+    "previous_avg_delta_us": 0,
+    "dynamic_candidate": false,
+    "protocol_guess": "static_or_unknown_ook_candidate",
+    "decoded_protocol": "unknown",
+    "decoded_bits": "",
+    "comparison_verdict": "needs_second_capture",
+    "security_verdict": "static_replay_expected_if_capture_clean"
+  },
+  "edges_us": [598,338,903,321,934,293,938,921,302,329,919,935,292,938,308,919,311,918,312,925,300,327,918,912,317,315,929,295,935,317,915,321,915,302,938,910,322,305,921,301,930,943,287,321,916,925,299,329,919,311],
+  "sha1": "ad92f9858caf5bd9cd4ab41a5c9b8e41ebb53884"
+}

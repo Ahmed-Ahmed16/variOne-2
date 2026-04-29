@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-205332",
+  "type": "MIFARE Ultralt",
+  "uid": "04:41:5B:AA:76:74:80",
+  "sak": "0x00",
+  "atqa": null,
+  "emv": {
+    "aid": null,
+    "pan_masked": null,
+    "expiry": null,
+    "name": null
+  },
+  "sha1": "5600fb884613ead158e96041bb7768e263a8907a"
+}

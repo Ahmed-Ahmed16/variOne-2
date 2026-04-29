@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-324974",
+  "elapsed_ms": 1189,
+  "hardware": {
+    "mcu": "ESP32-WROOM-32D",
+    "reader": "PN532",
+    "bus": "I2C",
+    "address": "0x24"
+  },
+  "type": "MIFARE Ultralight",
+  "uid": "04:41:5B:AA:76:74:80",
+  "sak": "0x00",
+  "atqa": null,
+  "emv": {
+    "aid": null,
+    "pan_masked": null,
+    "expiry": null,
+    "name": null,
+    "limit_stage": "inlist-fail",
+    "ppse_ok": false,
+    "aid_select_ok": false,
+    "gpo_ok": false,
+    "record_read_ok": false,
+    "payment_emulation": "blocked_no_dynamic_cryptogram_no_terminal_relay",
+    "verdict": "metadata_read_only_payment_emulation_not_possible_on_this_stack"
+  },
+  "sha1": "7cf2fed2c998ff7459fb632b3b7b717520da229d"
+}

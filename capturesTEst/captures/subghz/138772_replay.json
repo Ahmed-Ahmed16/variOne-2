@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "captured_at": "uptime-ms-138803",
+  "freq_hz": 433920000,
+  "modulation": "OOK",
+  "target_class": "rolling_code_car_attempt",
+  "result": "rejected",
+  "observation": "no_physical_response",
+  "source": "live",
+  "edges": 30,
+  "rssi_dbm": -69,
+  "security_verdict": "dynamic_replay_expected_rejected_interaction_only_possible",
+  "sha1": "cad672987197a142993eab79b2afd7423e827e84"
+}
