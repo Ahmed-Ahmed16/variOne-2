@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .bg { fill: #f7fcff; }
+      .panel { fill: #ffffff; stroke: #d7e8f4; stroke-width: 2; }
+      .title { font-family: Inter, Arial, sans-serif; font-size: 54px; font-weight: 800; fill: #0b2e63; }
+      .h2 { font-family: Inter, Arial, sans-serif; font-size: 28px; font-weight: 800; fill: #0b2e63; }
+      .h3 { font-family: Inter, Arial, sans-serif; font-size: 20px; font-weight: 800; fill: #0b2e63; }
+      .body { font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 500; fill: #21496f; }
+      .small { font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 500; fill: #375f7d; }
+      .tiny { font-family: Inter, Arial, sans-serif; font-size: 13px; font-weight: 500; fill: #55748a; }
+      .label { font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 800; fill: #0b2e63; }
+      .navy { fill: #0b2e63; }
+      .visor { fill: #102b5c; }
+      .cyan { fill: #29c7f6; }
+      .glow { fill: #67e9ff; }
+      .blue { fill: #238ddb; }
+      .pale { fill: #d9f3ff; }
+      .white { fill: #f7fcff; }
+      .stroke { stroke: #0b2e63; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+      .thinStroke { stroke: #0b2e63; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+      .cyanStroke { stroke: #29c7f6; stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1920" height="1080"/>
+  <circle cx="1690" cy="130" r="220" fill="#e8f8ff"/>
+  <circle cx="150" cy="930" r="260" fill="#eefaff"/>
+
+  <text x="72" y="82" class="title">Vemo Mascot Design Board</text>
+  <text x="74" y="120" class="body">Official VariOne mascot handoff for designers, editors, Figma, Canva, and future agents</text>
+
+  <rect x="70" y="160" width="510" height="800" rx="24" class="panel"/>
+  <text x="105" y="210" class="h2">Canonical Character</text>
+  <text x="105" y="242" class="body">Cute outside. Powerful inside.</text>
+
+  <!-- Large editable Vemo construction drawing -->
+  <g id="vemo-canonical-front" transform="translate(158,285)">
+    <!-- boots behind body -->
+    <path class="blue stroke" d="M112 490 C88 492 70 508 70 532 C70 553 91 565 122 562 L170 557 C188 555 197 540 189 524 C178 502 148 486 112 490 Z"/>
+    <path class="blue stroke" d="M278 490 C302 492 320 508 320 532 C320 553 299 565 268 562 L220 557 C202 555 193 540 201 524 C212 502 242 486 278 490 Z"/>
+
+    <!-- body -->
+    <path class="white stroke" d="M112 265 C125 215 266 215 279 265 L309 430 C318 482 282 514 195 514 C108 514 72 482 81 430 Z"/>
+    <path class="pale" d="M105 398 C145 445 251 445 286 394 L299 432 C306 472 274 495 195 495 C116 495 84 472 91 432 Z"/>
+
+    <!-- arms -->
+    <path class="white stroke" d="M78 305 C32 340 18 410 48 445 C68 468 101 452 105 420 C109 382 121 343 141 318 Z"/>
+    <path class="white stroke" d="M312 305 C358 340 372 410 342 445 C322 468 289 452 285 420 C281 382 269 343 249 318 Z"/>
+    <circle cx="54" cy="444" r="38" class="blue stroke"/>
+    <circle cx="336" cy="444" r="38" class="blue stroke"/>
+
+    <!-- head ears -->
+    <path class="blue stroke" d="M105 84 C75 42 98 7 143 31 C151 38 153 51 146 63 Z"/>
+    <path class="blue stroke" d="M285 84 C315 42 292 7 247 31 C239 38 237 51 244 63 Z"/>
+
+    <!-- head -->
+    <path class="white stroke" d="M48 112 C54 38 112 0 195 0 C278 0 336 38 342 112 C350 213 292 267 195 267 C98 267 40 213 48 112 Z"/>
+    <path class="pale" d="M72 56 C104 22 150 13 195 13 C240 13 286 22 318 56 C287 36 245 30 195 30 C145 30 103 36 72 56 Z"/>
+
+    <!-- visor -->
+    <path class="visor stroke" d="M95 115 C112 82 278 82 295 115 C307 142 298 180 272 191 C235 207 155 207 118 191 C92 180 83 142 95 115 Z"/>
+    <ellipse cx="153" cy="142" rx="21" ry="31" class="glow"/>
+    <ellipse cx="236" cy="142" rx="21" ry="31" class="glow"/>
+    <ellipse cx="147" cy="132" rx="7" ry="11" fill="#e5fbff" opacity="0.8"/>
+    <ellipse cx="230" cy="132" rx="7" ry="11" fill="#e5fbff" opacity="0.8"/>
+
+    <!-- chest logo approximating VariOne mark, logo mark only -->
+    <g id="varione-logo-mark-on-chest" transform="translate(150,346) scale(0.42)">
+      <path d="M0 0 L55 140 C69 175 114 176 129 142 L181 22" fill="none" stroke="#29c7f6" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M95 4 C168 -30 270 8 280 97 C289 181 225 241 145 231" fill="none" stroke="#29c7f6" stroke-width="38" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <text x="112" y="890" class="h3">Non-negotiables</text>
+  <text x="112" y="923" class="small">Same head, ears, visor, gloves, boots, and chest logo in every asset.</text>
+  <text x="112" y="948" class="small">No square chest badge. No motto text. No scary hacker styling.</text>
+
+  <rect x="620" y="160" width="545" height="385" rx="24" class="panel"/>
+  <text x="655" y="210" class="h2">Logo Rule</text>
+  <text x="655" y="244" class="body">Use the VariOne V/O logo mark only on the chest.</text>
+  <text x="655" y="275" class="small">Do not include the motto. Do not write readable text on Vemo.</text>
+
+  <!-- Large editable logo mark -->
+  <g id="varione-logo-mark-reference" transform="translate(730,325) scale(1.05)">
+    <path d="M0 0 L76 190 C96 239 158 240 179 193 L250 30" fill="none" stroke="#29c7f6" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M132 7 C235 -42 380 12 394 137 C407 255 316 339 204 326" fill="none" stroke="#29c7f6" stroke-width="54" stroke-linecap="round"/>
+  </g>
+  <text x="655" y="500" class="tiny">Editable SVG approximation. Replace with final vector logo if available.</text>
+
+  <rect x="1205" y="160" width="645" height="385" rx="24" class="panel"/>
+  <text x="1240" y="210" class="h2">Color Palette</text>
+  <g transform="translate(1240,250)">
+    <rect width="92" height="92" rx="14" fill="#0b2e63"/><text x="0" y="122" class="label">Deep Navy</text><text x="0" y="146" class="tiny">#0B2E63</text>
+    <rect x="122" width="92" height="92" rx="14" fill="#102b5c"/><text x="122" y="122" class="label">Visor</text><text x="122" y="146" class="tiny">#102B5C</text>
+    <rect x="244" width="92" height="92" rx="14" fill="#29c7f6"/><text x="244" y="122" class="label">Cyan</text><text x="244" y="146" class="tiny">#29C7F6</text>
+    <rect x="366" width="92" height="92" rx="14" fill="#67e9ff"/><text x="366" y="122" class="label">Glow</text><text x="366" y="146" class="tiny">#67E9FF</text>
+    <rect x="488" width="92" height="92" rx="14" fill="#238ddb"/><text x="488" y="122" class="label">Blue</text><text x="488" y="146" class="tiny">#238DDB</text>
+  </g>
+  <text x="1240" y="445" class="h3">Accent colors</text>
+  <circle cx="1255" cy="485" r="16" fill="#24c26a"/><text x="1280" y="491" class="small">Green success check</text>
+  <circle cx="1485" cy="485" r="16" fill="#ef4056"/><text x="1510" y="491" class="small">Red failure X</text>
+  <circle cx="1690" cy="485" r="16" fill="#ffd45c"/><text x="1715" y="491" class="small">Yellow idea bulb</text>
+
+  <rect x="620" y="580" width="545" height="380" rx="24" class="panel"/>
+  <text x="655" y="630" class="h2">Expression System</text>
+  <text x="655" y="665" class="body">Eyes carry the emotion. Keep the visor shape stable.</text>
+  <g transform="translate(655,705)">
+    <g>
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <path d="M31 30 Q44 44 57 30" fill="none" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M68 30 Q81 44 94 30" fill="none" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <text x="0" y="95" class="label">Happy</text>
+    </g>
+    <g transform="translate(145,0)">
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <ellipse cx="36" cy="31" rx="12" ry="20" class="glow"/>
+      <path d="M70 31 Q85 21 99 31" fill="none" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <text x="0" y="95" class="label">Thinking</text>
+    </g>
+    <g transform="translate(290,0)">
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <ellipse cx="36" cy="31" rx="15" ry="22" class="glow"/>
+      <ellipse cx="80" cy="31" rx="15" ry="22" class="glow"/>
+      <text x="0" y="95" class="label">Working</text>
+    </g>
+    <g transform="translate(0,140)">
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <circle cx="36" cy="31" r="18" class="glow"/>
+      <circle cx="80" cy="31" r="18" class="glow"/>
+      <text x="0" y="95" class="label">Shocked</text>
+    </g>
+    <g transform="translate(145,140)">
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <path d="M27 27 L49 38" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M88 27 L66 38" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <text x="0" y="95" class="label">Angry</text>
+    </g>
+    <g transform="translate(290,140)">
+      <rect width="115" height="62" rx="30" class="visor"/>
+      <path d="M28 38 Q45 26 60 38" fill="none" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M64 38 Q81 26 96 38" fill="none" stroke="#67e9ff" stroke-width="8" stroke-linecap="round"/>
+      <text x="0" y="95" class="label">Sad</text>
+    </g>
+  </g>
+
+  <rect x="1205" y="580" width="645" height="380" rx="24" class="panel"/>
+  <text x="1240" y="630" class="h2">Generation Prompt Rules</text>
+  <text x="1240" y="670" class="small">Use these words every time: cute compact anime-tech robot companion,</text>
+  <text x="1240" y="695" class="small">glossy white shell, dark navy rounded visor, glowing cyan eyes,</text>
+  <text x="1240" y="720" class="small">blue gloves and boots, thick navy outline, soft cel shading.</text>
+  <text x="1240" y="770" class="h3">Always include</text>
+  <text x="1240" y="803" class="small">Simplified VariOne V/O logo mark centered on chest, no motto text.</text>
+  <text x="1240" y="846" class="h3">Always avoid</text>
+  <text x="1240" y="879" class="small">No square badge, no readable text, no scary hacker visuals, no weapons,</text>
+  <text x="1240" y="904" class="small">no realistic fur, no photorealism, no dark villain styling.</text>
+  <text x="1240" y="947" class="tiny">Full prompt and handoff notes: Vemo_mascot_consistency_guide.md</text>
+</svg>

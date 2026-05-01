@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <linearGradient id="whiteShell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.58" stop-color="#f7fcff"/>
+      <stop offset="1" stop-color="#d9f3ff"/>
+    </linearGradient>
+    <linearGradient id="bluePart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#45cfff"/>
+      <stop offset="0.52" stop-color="#238ddb"/>
+      <stop offset="1" stop-color="#1269ba"/>
+    </linearGradient>
+    <linearGradient id="darkVisor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#163d78"/>
+      <stop offset="0.55" stop-color="#102b5c"/>
+      <stop offset="1" stop-color="#081d45"/>
+    </linearGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#e7fbff"/>
+      <stop offset="0.42" stop-color="#67e9ff"/>
+      <stop offset="1" stop-color="#29c7f6"/>
+    </radialGradient>
+    <linearGradient id="mouthGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1738"/>
+      <stop offset="1" stop-color="#3d1544"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12"/>
+      <feOffset dx="0" dy="18" result="offset"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.18"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="1200" fill="#ffffff"/>
+
+  <g id="vemo-master-character" filter="url(#softShadow)">
+    <!-- Signal accent arcs -->
+    <path d="M312 246 C430 124 738 124 888 242" fill="none" stroke="#29c7f6" stroke-width="18" stroke-linecap="round" opacity="0.18"/>
+    <path d="M260 330 C410 170 785 165 946 325" fill="none" stroke="#29c7f6" stroke-width="18" stroke-linecap="round" opacity="0.15"/>
+
+    <!-- Back arm, raised thumb side -->
+    <path d="M824 592 C872 554 934 574 954 634 C972 686 948 739 902 754 C858 768 816 740 809 694 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M835 533 C899 492 976 521 1004 586 C1014 608 1000 631 977 632 C947 633 929 613 910 594 C888 612 865 631 841 651 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+
+    <!-- Legs behind body -->
+    <path d="M392 790 C355 850 332 920 323 1000 C320 1033 344 1052 388 1045 L470 1032 C500 1027 516 998 502 971 L454 805 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M720 790 C757 850 780 920 789 1000 C792 1033 768 1052 724 1045 L642 1032 C612 1027 596 998 610 971 L658 805 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+
+    <!-- Boots -->
+    <path d="M314 1000 C260 1000 226 1030 226 1070 C226 1110 268 1128 336 1118 L470 1098 C510 1092 530 1058 510 1026 C486 987 398 999 314 1000 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M798 1000 C852 1000 886 1030 886 1070 C886 1110 844 1128 776 1118 L642 1098 C602 1092 582 1058 602 1026 C626 987 714 999 798 1000 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+    <ellipse cx="392" cy="1032" rx="72" ry="24" fill="#7fe3ff" opacity="0.42"/>
+    <ellipse cx="720" cy="1032" rx="72" ry="24" fill="#7fe3ff" opacity="0.42"/>
+
+    <!-- Body side panels -->
+    <path d="M300 540 C252 596 226 682 246 756 C258 800 294 822 334 806 C366 793 374 752 356 720 C335 682 342 630 380 578 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M812 540 C860 596 886 682 866 756 C854 800 818 822 778 806 C746 793 738 752 756 720 C777 682 770 630 732 578 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+
+    <!-- Body shell -->
+    <path d="M330 505 C376 438 736 438 782 505 C842 592 866 774 806 858 C748 940 364 940 306 858 C246 774 270 592 330 505 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="17" stroke-linejoin="round"/>
+    <path d="M350 790 C424 850 688 850 762 790" fill="none" stroke="#b9ddf2" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+    <path d="M346 538 C402 486 711 486 766 538" fill="none" stroke="#ffffff" stroke-width="19" stroke-linecap="round" opacity="0.65"/>
+
+    <!-- Front arm and glove left -->
+    <path d="M302 598 C244 645 221 730 250 790 C275 841 341 826 354 769 C365 717 386 661 424 620 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M238 773 C195 787 174 830 191 869 C208 909 254 923 302 903 C352 882 371 835 350 798 C330 764 284 758 238 773 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+    <ellipse cx="260" cy="804" rx="42" ry="15" fill="#7fe3ff" opacity="0.45" transform="rotate(-18 260 804)"/>
+
+    <!-- Front arm and raised glove -->
+    <path d="M754 550 C796 527 844 544 864 590 C884 638 858 694 812 713 C772 730 735 706 728 660 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M805 443 C835 398 891 393 922 432 C938 451 927 478 904 482 L884 485 L910 516 C929 540 912 573 882 570 L854 567 L868 594 C879 617 858 642 834 633 L803 621 C756 603 737 551 760 506 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M811 454 L880 590" fill="none" stroke="#0b2e63" stroke-width="10" stroke-linecap="round" opacity="0.42"/>
+    <path d="M838 444 L865 556" fill="none" stroke="#0b2e63" stroke-width="9" stroke-linecap="round" opacity="0.38"/>
+    <ellipse cx="832" cy="462" rx="38" ry="16" fill="#7fe3ff" opacity="0.45" transform="rotate(-35 832 462)"/>
+
+    <!-- Ears behind head -->
+    <circle cx="330" cy="288" r="78" fill="#238ddb" stroke="#0b2e63" stroke-width="16"/>
+    <circle cx="782" cy="288" r="78" fill="#238ddb" stroke="#0b2e63" stroke-width="16"/>
+    <circle cx="330" cy="288" r="48" fill="#29c7f6" opacity="0.52"/>
+    <circle cx="782" cy="288" r="48" fill="#29c7f6" opacity="0.52"/>
+    <path d="M294 268 C315 230 357 226 382 254" fill="none" stroke="#8beaff" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+    <path d="M746 268 C767 230 809 226 834 254" fill="none" stroke="#8beaff" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+
+    <!-- Head shell -->
+    <path d="M190 342 C195 186 326 92 556 92 C786 92 917 186 922 342 C927 510 793 598 556 598 C319 598 185 510 190 342 Z" fill="#f7fcff" stroke="#0b2e63" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M250 225 C344 148 759 148 864 228" fill="none" stroke="#ffffff" stroke-width="25" stroke-linecap="round" opacity="0.74"/>
+    <path d="M222 392 C280 526 835 526 890 392" fill="none" stroke="#b9ddf2" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
+
+    <!-- Visor -->
+    <path d="M292 285 C326 230 786 230 820 285 C852 337 836 430 780 456 C695 496 417 496 332 456 C276 430 260 337 292 285 Z" fill="#102b5c" stroke="#0b2e63" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M330 275 C390 242 720 242 782 276" fill="none" stroke="#4d78ab" stroke-width="8" stroke-linecap="round" opacity="0.42"/>
+
+    <!-- Happy eyes -->
+    <path d="M392 374 C407 334 455 334 470 374" fill="none" stroke="#67e9ff" stroke-width="22" stroke-linecap="round"/>
+    <path d="M642 374 C657 334 705 334 720 374" fill="none" stroke="#67e9ff" stroke-width="22" stroke-linecap="round"/>
+    <path d="M398 366 C410 342 446 342 458 366" fill="none" stroke="#e7fbff" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+    <path d="M648 366 C660 342 696 342 708 366" fill="none" stroke="#e7fbff" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+
+    <!-- Mouth -->
+    <path d="M495 472 C512 448 600 448 617 472 C610 520 587 548 556 548 C525 548 502 520 495 472 Z" fill="#3d1544" stroke="#0b2e63" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M518 517 C543 496 572 496 596 517 C584 536 530 536 518 517 Z" fill="#ff6f7f"/>
+
+    <!-- Chest logo mark only, no motto -->
+    <g id="varione-chest-logo-mark" transform="translate(472,650) scale(0.48)">
+      <path d="M0 0 L76 190 C96 239 158 240 179 193 L250 30" fill="none" stroke="#29c7f6" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M132 7 C235 -42 380 12 394 137 C407 255 316 339 204 326" fill="none" stroke="#29c7f6" stroke-width="54" stroke-linecap="round"/>
+    </g>
+
+    <!-- Blue hip panels -->
+    <path d="M315 704 C355 670 395 660 432 675 C411 728 395 773 389 824 C352 825 319 808 300 782 C294 754 300 728 315 704 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="9" stroke-linejoin="round" opacity="0.95"/>
+    <path d="M797 704 C757 670 717 660 680 675 C701 728 717 773 723 824 C760 825 793 808 812 782 C818 754 812 728 797 704 Z" fill="#238ddb" stroke="#0b2e63" stroke-width="9" stroke-linejoin="round" opacity="0.95"/>
+
+    <!-- Gloss highlights -->
+    <ellipse cx="425" cy="170" rx="58" ry="23" fill="#ffffff" opacity="0.48" transform="rotate(-8 425 170)"/>
+    <ellipse cx="720" cy="135" rx="48" ry="18" fill="#ffffff" opacity="0.38" transform="rotate(12 720 135)"/>
+    <ellipse cx="372" cy="624" rx="54" ry="16" fill="#ffffff" opacity="0.42" transform="rotate(-12 372 624)"/>
+    <ellipse cx="454" cy="1018" rx="52" ry="16" fill="#8beaff" opacity="0.35"/>
+    <ellipse cx="658" cy="1018" rx="52" ry="16" fill="#8beaff" opacity="0.35"/>
+  </g>
+</svg>
