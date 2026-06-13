@@ -10,6 +10,7 @@
 #include "modules/rf/rf_send.h"
 #include "modules/rf/rf_spectrum.h"
 #include "modules/rf/rf_waterfall.h"
+#include "modules/varione/keyfob/keyfob_inspect.h"
 
 void RFMenu::optionsMenu() {
     options = {
@@ -27,6 +28,7 @@ void RFMenu::optionsMenu() {
         {"Listen",          rf_listen                 }, // dev_eclipse
 #endif
         {"Bruteforce",      rf_bruteforce             }, // dev_eclipse
+        {"Keyfob Inspect",  keyfob_inspect            }, // VariOne: capture+classify+explain
         {"Jammer Itmt",     [=]() { RFJammer(false); }},
 #endif
         {"Jammer Full",     [=]() { RFJammer(true); } },
