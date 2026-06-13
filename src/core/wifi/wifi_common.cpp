@@ -130,6 +130,14 @@ bool _setupAP() {
     WiFi.mode(WIFI_AP);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
+    // Defensive: a prior WiFi attack leaves the radio in promiscuous/sniff
+    // state (wifi_atk_unsetWifi never disabled it). With the driver now started
+    // in AP mode, force promiscuous off and clear the RX callback so the AP
+    // actually emits a beacon. One spot fixes every AP raise regardless of
+    // prior state (menu / debrief / WebUI).
+    esp_wifi_set_promiscuous(false);
+    esp_wifi_set_promiscuous_rx_cb(NULL);
+
     // Lock an explicit regulatory country with MANUAL policy. The default
     // country "01" (worldwide) uses AUTO policy, which waits to detect a
     // country from a received beacon before it will actively transmit the

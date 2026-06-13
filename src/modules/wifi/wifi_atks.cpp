@@ -254,6 +254,12 @@ bool wifi_atk_setWifi() {
 ** @brief: Sets the Minimum Wifi parameters to WiFi Attacks
 ***************************************************************************************/
 bool wifi_atk_unsetWifi() {
+    // Leave a clean radio: attacks put the chip in promiscuous/sniff state,
+    // and if that state survives teardown the next _setupAP() reports mode=2
+    // but emits no beacon. Same pattern as wifi_complete_cleanup().
+    esp_wifi_set_promiscuous(false);
+    esp_wifi_set_promiscuous_rx_cb(NULL);
+
     if (WiFi.softAPSSID() == WIFI_ATK_NAME) {
         if (!WiFi.softAPdisconnect()) {
             displayError("Failed Stopping AP Attacker", true);

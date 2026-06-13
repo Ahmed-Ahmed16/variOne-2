@@ -215,9 +215,13 @@ static void serveReportLoop() {
     Serial.println("[DEBRIEF] AP '" + apSsid + "' up at " + apIP.toString());
 
     // Async server runs on its own task; we only service DNS and watch for BACK.
-    // Flush any stale BACK from the attack/prompt so it can't tear the AP down.
-    check(EscPress);
-    delay(300);
+    // Drain any stale/held/bouncing BACK from the preceding attack or prompt for
+    // ~800 ms so it can't tear the AP down on frame 1 of the watch loop below.
+    uint32_t drainEnd = millis() + 800;
+    while (millis() < drainEnd) {
+        check(EscPress); // consume and ignore
+        delay(20);
+    }
     uint32_t lastDiag = millis();
     int lastStations = -1;
     while (!check(EscPress)) {
