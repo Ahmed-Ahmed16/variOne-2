@@ -44,10 +44,17 @@ void checkReboot() {}
 /*********************************************************************
 ** Function: InputHandler
 ** Description: Six-button VariOne S3 input: LEFT/RIGHT navigate, OK selects, BACK escapes.
+**
+** With VARIONE_LONGPRESS_NAV (default on), OK and BACK gain a long-press
+** action so full navigate+select+back+open-options is reachable from just
+** OK+BACK while the D-pad is flaky:
+**   OK   short -> SelPress (select)   long -> NextPress (down / open RF opts / save IR)
+**   BACK short -> EscPress (back)     long -> PrevPress (up)
+** Short actions fire on release (< threshold); long fires once on hold.
+** The six original short-press mappings stay live for any working directional.
 **********************************************************************/
 void InputHandler(void) {
     static unsigned long tm = millis();
-    if (!(millis() - tm > 200 || LongPress)) return;
 
     bool left = digitalRead(L_BTN) == LOW;
     bool up = digitalRead(UP_BTN) == LOW;
@@ -55,13 +62,64 @@ void InputHandler(void) {
     bool down = digitalRead(DW_BTN) == LOW;
     bool ok = digitalRead(OK_BTN) == LOW;
     bool back = digitalRead(BACK_BTN) == LOW;
+    unsigned long now = millis();
+
+#if VARIONE_LONGPRESS_NAV
+    // Per-button edge state for OK/BACK long-press nav.
+    static bool okPrev = false, backPrev = false;
+    static unsigned long okStart = 0, backStart = 0;
+    static bool okLong = false, backLong = false;
+    static bool okWake = false, backWake = false;
+
+    // ---- OK: short=SEL (on release), long=NEXT (on hold) ----
+    if (ok && !okPrev) { // press edge
+        okStart = now;
+        okLong = false;
+        okWake = (isScreenOff || dimmer); // swallow press that only wakes screen
+        wakeUpScreen();
+    }
+    if (ok && !okLong && !okWake && (now - okStart >= VARIONE_LONGPRESS_MS)) {
+        NextPress = true;
+        AnyKeyPress = true;
+        okLong = true;
+        Serial.println("[BTN] OK long=1 -> NEXT");
+    }
+    if (!ok && okPrev && !okLong && !okWake) { // release as short press
+        SelPress = true;
+        AnyKeyPress = true;
+        Serial.println("[BTN] OK short -> SEL");
+    }
+    okPrev = ok;
+
+    // ---- BACK: short=ESC (on release), long=PREV (on hold) ----
+    if (back && !backPrev) {
+        backStart = now;
+        backLong = false;
+        backWake = (isScreenOff || dimmer);
+        wakeUpScreen();
+    }
+    if (back && !backLong && !backWake && (now - backStart >= VARIONE_LONGPRESS_MS)) {
+        PrevPress = true;
+        AnyKeyPress = true;
+        backLong = true;
+        Serial.println("[BTN] BACK long=1 -> PREV");
+    }
+    if (!back && backPrev && !backLong && !backWake) {
+        EscPress = true;
+        AnyKeyPress = true;
+        Serial.println("[BTN] BACK short -> ESC");
+    }
+    backPrev = back;
+#endif
+
+    if (!(now - tm > 200 || LongPress)) return;
 
     if (left || up || right || down || ok || back) {
         Serial.printf(
             "[BTN] L=%d U=%d R=%d D=%d OK=%d BACK=%d wake=%d\n",
             left, up, right, down, ok, back, (isScreenOff || dimmer)
         );
-        tm = millis();
+        tm = now;
         if (!wakeUpScreen()) AnyKeyPress = true;
         else return;
     }
@@ -70,9 +128,11 @@ void InputHandler(void) {
     if (right) NextPress = true;
     if (up) UpPress = true;
     if (down) DownPress = true;
+#if !VARIONE_LONGPRESS_NAV
     if (ok) SelPress = true;
     if (back) {
         EscPress = true;
         Serial.println("[BTN] ESC set");
     }
+#endif
 }

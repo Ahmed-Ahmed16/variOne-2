@@ -35,7 +35,7 @@ void RFScan::setup() {
 void RFScan::loop() {
     while (1) {
         if (check(EscPress) || returnToMenu) return;
-        if (check(NextPress)) {
+        if (check(NextPress) || check(SelPress)) {
             select_menu_option();
             if (returnToMenu) return;
             return setup();
@@ -47,7 +47,7 @@ void RFScan::loop() {
 
         while (frequency <= 0) { // FastScan
             if (check(EscPress) || returnToMenu) return;
-            if (check(NextPress)) {
+            if (check(NextPress) || check(SelPress)) {
                 select_menu_option();
                 if (returnToMenu) return;
                 return setup();
@@ -498,7 +498,7 @@ void display_info(RfCodes received, int signals, bool ReadRAW, bool codesOnly, b
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     padprintln("");
-    padprintln("Press [NEXT] for options.");
+    padprintln("Press [OK] for options.");
 }
 
 void display_signal_data(RfCodes received) {
