@@ -89,7 +89,22 @@ static bool captureRawInto(RCSwitch &rcswitch, RfCodes &out, float frequency) {
         return true;
     }
 
-    rcswitch.resetAvailable(); // just noise, no stable frame
+    // Permissive fallback (mirrors RFScan's non-codesOnly branch): accept ANY
+    // raw waveform with real transitions, even without a clean repeating frame
+    // to CRC. key stays 0; comparison falls back to the raw timing string. This
+    // is what lets car keys / odd remotes register at all (they were rejected
+    // before -> "nothing recorded").
+    if (dataStr.length() > 0) {
+        out.protocol = "RAW";
+        out.preset = "0";
+        out.key = 0;
+        out.indexed_durations = indexed_durations;
+        out.Bit = 0;
+        rcswitch.resetAvailable();
+        return true;
+    }
+
+    rcswitch.resetAvailable(); // truly nothing
     return false;
 }
 
@@ -208,8 +223,20 @@ static void showClassification(const RfCodes &a, const RfCodes &b, bool keeloq, 
         // Non-decoding remote (e.g. car key): compare RAW signatures.
         padprintln("Protocol: RAW");
         padprintln(fixed ? "Type: FIXED" : "Type: ROLLING");
-        padprintln("Sig A: " + String(a.key, HEX));
-        padprintln("Sig B: " + String(b.key, HEX));
+        if (a.key != 0 || b.key != 0) {
+            padprintln("Sig A: " + String(a.key, HEX));
+            padprintln("Sig B: " + String(b.key, HEX));
+        } else {
+            // No CRC frame; show raw edge counts so the two captures are visible.
+            auto edges = [](const String &s) {
+                int n = s.length() ? 1 : 0;
+                for (int i = 0; i < (int)s.length(); i++)
+                    if (s[i] == ' ') n++;
+                return n;
+            };
+            padprintln("Edges A: " + String(edges(a.data)));
+            padprintln("Edges B: " + String(edges(b.data)));
+        }
         padprintln("Freq: " + String(a.frequency / 1000000.0, 2) + " MHz");
     } else {
         padprintln("Protocol: " + a.protocol + "(" + a.preset + ")");
@@ -241,6 +268,27 @@ static String explainBody(bool keeloq, bool fixed) {
            "A single capture can be replayed forever to open the device.\n"
            "\n"
            "Mitigation: replace with a rolling-code remote.";
+}
+
+// Lenient compare of two raw timing strings for the key==0 case (no decode, no
+// CRC frame). Fixed remotes repeat near-identically bar timing jitter; rolling
+// codes differ heavily. Returns true (FIXED) if most tokens line up.
+static bool rawSimilar(const String &a, const String &b) {
+    int ia = 0, ib = 0, total = 0, match = 0;
+    while (ia < (int)a.length() && ib < (int)b.length()) {
+        int na = a.indexOf(' ', ia);
+        if (na < 0) na = a.length();
+        int nb = b.indexOf(' ', ib);
+        if (nb < 0) nb = b.length();
+        long va = a.substring(ia, na).toInt();
+        long vb = b.substring(ib, nb).toInt();
+        long tol = max(80L, labs(va) / 4); // within 25% or 80us
+        if (labs(va - vb) <= tol) match++;
+        total++;
+        ia = na + 1;
+        ib = nb + 1;
+    }
+    return total > 8 && (match * 100 / total) >= 80;
 }
 
 // Pick a capture frequency. Manual, not an RSSI auto-scan — a full-band RSSI
@@ -294,10 +342,14 @@ void keyfob_inspect() {
         return;
     }
 
-    // KeeLoq (protocol 23) sets fix != 0 and is rolling by nature. Otherwise,
-    // identical keys/signatures across two presses => FIXED; differing => ROLLING.
+    // KeeLoq (protocol 23, fix != 0) is rolling by nature. Else: prefer a real
+    // key (decode value or RAW CRC) — equal => FIXED. When neither press yielded
+    // a key (raw-only car remotes), fall back to comparing the raw waveforms.
     bool keeloq = (a.fix != 0);
-    bool fixed = !keeloq && a.key != 0 && (a.key == b.key);
+    bool fixed;
+    if (keeloq) fixed = false;
+    else if (a.key != 0 || b.key != 0) fixed = (a.key != 0 && a.key == b.key);
+    else fixed = rawSimilar(a.data, b.data);
 
     Serial.printf(
         "[KEYFOB] keeloq=%d fixed=%d A=%llx B=%llx mfr=%s\n",
