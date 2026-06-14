@@ -94,12 +94,16 @@ static bool captureRawInto(RCSwitch &rcswitch, RfCodes &out, float frequency) {
 }
 
 // --------------------------------------------------------------------------
-// Capture exactly one code on `frequency`. Prefers an RCSwitch decode (gives
-// KeeLoq identifiers); falls back to a RAW signature for non-decoding remotes
-// (car keys). Blocks until a code is captured or BACK. Returns false on BACK /
-// RF init error.
+// Capture exactly one code on `frequency`. Two disjoint paths so they can't
+// starve each other:
+//   rawMode=false (Keylock): poll the RCSwitch DECODE buffer; ignore undecoded
+//     noise. Gives KeeLoq identifiers. Good for OOK/ASK remotes (fan/garage).
+//   rawMode=true  (Any-freq): poll ONLY the RAW buffer and build a CRC sig.
+//     Needed for rolling/car remotes that set available() with no clean decode
+//     (those would otherwise reset the buffer before RAW ever ran).
+// Blocks until a code is captured or BACK. Returns false on BACK / RF init err.
 // --------------------------------------------------------------------------
-static bool captureOneCode(RfCodes &out, const String &prompt, float frequency) {
+static bool captureOneCode(RfCodes &out, const String &prompt, float frequency, bool rawMode) {
     drawMainBorderWithTitle("Keyfob Inspect");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     padprintln("");
@@ -126,7 +130,16 @@ static bool captureOneCode(RfCodes &out, const String &prompt, float frequency) 
 
     bool got = false;
     while (!check(EscPress)) {
-        if (rcswitch.available()) {
+        if (rawMode) {
+            // RAW-only: build a CRC signature from any repeating waveform.
+            if (rcswitch.RAWavailable()) {
+                if (captureRawInto(rcswitch, out, frequency)) {
+                    got = true;
+                    break;
+                }
+                rcswitch.resetAvailable(); // was noise; keep listening
+            }
+        } else if (rcswitch.available()) {
             uint64_t decoded = rcswitch.getReceivedValue();
             if (decoded) {
                 out = RfCodes(); // clear all fields
@@ -155,12 +168,6 @@ static bool captureOneCode(RfCodes &out, const String &prompt, float frequency) 
                 break;
             }
             rcswitch.resetAvailable();
-        } else if (rcswitch.RAWavailable()) {
-            // No clean decode — try a RAW signature (car keys / odd protocols).
-            if (captureRawInto(rcswitch, out, frequency)) {
-                got = true;
-                break;
-            }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
@@ -236,76 +243,53 @@ static String explainBody(bool keeloq, bool fixed) {
            "Mitigation: replace with a rolling-code remote.";
 }
 
-// --------------------------------------------------------------------------
-// Any-freq scan: sweep the whole sub-GHz list reading RSSI while the operator
-// holds the fob, lock onto the strongest frequency. Lets the RAW mode catch
-// remotes that are not on 433.92. Returns false on BACK / RF init error; on no
-// strong signal it falls back to 433.92 so capture can still be attempted.
-// --------------------------------------------------------------------------
-static bool scanForActiveFreq(float &outFreq) {
-    drawMainBorderWithTitle("Keyfob Inspect");
-    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-    padprintln("");
-    padprintln("HOLD the fob button");
-    padprintln("Scanning bands...");
-    padprintln("");
-    padprintln("[BACK] cancel");
-
-    if (!initRfModule("rx", subghz_frequency_list[0])) {
-        displayError("RF init failed", true);
-        return false;
-    }
-
-    const int N = 57; // subghz_frequency_list size
-    float bestFreq = 0;
-    int bestRssi = -127;
-    uint32_t scanEnd = millis() + 4000; // ~4 s window of sweeps
-    while (millis() < scanEnd && !check(EscPress)) {
-        for (int i = 0; i < N; i++) {
-            setMHZ(subghz_frequency_list[i]);
-            vTaskDelay(3 / portTICK_PERIOD_MS);
-            int rssi = ELECHOUSE_cc1101.getRssi();
-            if (rssi > bestRssi) {
-                bestRssi = rssi;
-                bestFreq = subghz_frequency_list[i];
-            }
-        }
-    }
-    deinitRfModule();
-    if (check(EscPress)) return false;
-
-    if (bestFreq <= 0 || bestRssi < -85) bestFreq = 433.92; // nothing strong -> default
-    outFreq = bestFreq;
-    Serial.printf("[KEYFOB] scan best=%.2f MHz rssi=%d\n", bestFreq, bestRssi);
-    displayTextLine("Found " + String(bestFreq, 2) + " MHz");
-    delay(800);
-    return true;
+// Pick a capture frequency. Manual, not an RSSI auto-scan — a full-band RSSI
+// sweep reliably mis-locks onto ambient noise (e.g. 300 MHz) instead of the
+// remote's real band. Default to the configured RF freq.
+static float pickFrequency() {
+    float freq = bruceConfigPins.rfFreq > 0 ? bruceConfigPins.rfFreq : 433.92;
+    options = {
+        {"433.92 MHz", [&]() { freq = 433.92; }},
+        {"315 MHz", [&]() { freq = 315.0; }},
+        {"868.35 MHz", [&]() { freq = 868.35; }},
+        {"915 MHz", [&]() { freq = 915.0; }},
+    };
+    loopOptions(options);
+    options.clear();
+    return freq;
 }
 
 void keyfob_inspect() {
     RfCodes a, b;
 
-    // Two explicit modes (operator-chosen): RAW any-freq for non-decoding
-    // remotes (car keys), decode for OOK/ASK remotes + KeeLoq (fan/garage).
+    // Two explicit modes (operator-chosen): RAW any-freq for rolling/non-
+    // decoding remotes (car keys), decode for OOK/ASK remotes + KeeLoq (fan).
     int mode = -1;
     returnToMenu = false;
     options = {
-        {"Any-freq scan (RAW)", [&]() { mode = 0; }},
+        {"Any-freq (RAW)", [&]() { mode = 0; }},
         {"Keylock / remote", [&]() { mode = 1; }},
     };
     loopOptions(options);
     options.clear();
     if (returnToMenu || mode < 0) return;
 
+    bool rawMode = (mode == 0);
+    // RAW mode lets the operator pick the band (car keys may be off 433.92);
+    // decode mode stays on the configured/default freq.
     float freq = bruceConfigPins.rfFreq > 0 ? bruceConfigPins.rfFreq : 433.92;
-    if (mode == 0 && !scanForActiveFreq(freq)) return; // BACK during scan
+    if (rawMode) {
+        returnToMenu = false;
+        freq = pickFrequency();
+        if (returnToMenu) return;
+    }
 
-    if (!captureOneCode(a, "Press fob (1/2)", freq)) {
+    if (!captureOneCode(a, "Press fob (1/2)", freq, rawMode)) {
         deinitRfModule();
         return;
     }
     delay(300);
-    if (!captureOneCode(b, "Press again (2/2)", freq)) {
+    if (!captureOneCode(b, "Press again (2/2)", freq, rawMode)) {
         deinitRfModule();
         return;
     }
