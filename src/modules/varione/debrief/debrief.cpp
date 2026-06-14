@@ -21,6 +21,36 @@
 // separate task) reference a buffer that stays valid for the serving loop.
 static String s_report;
 
+// Persistent SoftAP serving stack. The server/DNS are file-static (not stack
+// locals) so the SAME LWIP listener is reused on every debrief: begin()/end()
+// around each serve instead of constructing a fresh AsyncWebServer that would
+// race the previous one's socket release and fail with `bind error: -8` on the
+// second debrief of a session. Handlers are registered once (B1).
+static DNSServer s_dnsServer;
+static AsyncWebServer s_server(80);
+static bool s_handlersInit = false;
+
+static void initDebriefHandlers() {
+    if (s_handlersInit) return;
+    IPAddress apIP(192, 168, 4, 1); // SoftAP IP is always .4.1; safe to fix here
+    auto sendReport = [](AsyncWebServerRequest *req) { req->send(200, "text/html", s_report); };
+    auto redirect = [apIP](AsyncWebServerRequest *req) {
+        AsyncWebServerResponse *r = req->beginResponse(302);
+        r->addHeader("Location", "http://" + apIP.toString() + "/");
+        req->send(r);
+    };
+    s_server.on("/", HTTP_GET, sendReport);
+    s_server.on("/debrief", HTTP_GET, sendReport);
+    // OS captive-portal probes -> bounce to the report so it auto-opens.
+    s_server.on("/generate_204", HTTP_GET, redirect);
+    s_server.on("/gen_204", HTTP_GET, redirect);
+    s_server.on("/hotspot-detect.html", HTTP_GET, redirect);
+    s_server.on("/redirect", HTTP_GET, redirect);
+    s_server.on("/ncsi.txt", HTTP_GET, redirect);
+    s_server.onNotFound(sendReport);
+    s_handlersInit = true;
+}
+
 // ---- canned per-attack lesson content -------------------------------------
 
 static String attackTitle(DebriefType t) {
@@ -100,6 +130,51 @@ static String lessonReplicate(DebriefType t) {
     return "";
 }
 
+// ---- fact-driven dynamic insight (B3) --------------------------------------
+// Build one sentence-or-two of analysis selected DETERMINISTICALLY from the
+// real session facts (rate/duration/client buckets). Same attack reads the
+// same; different attacks read differently. Stays fully on-device — no libs,
+// no network — and sits at the same seam a future AI renderer would replace.
+
+static String dynamicInsight(const DebriefFacts &f) {
+    switch (f.type) {
+        case DEBRIEF_DEAUTH: {
+            float rate = f.durationS ? (float)f.frames / f.durationS : (float)f.frames;
+            String pace = rate >= 200 ? "a heavy" : (rate >= 50 ? "a sustained" : "a light");
+            String s = "This run pushed " + String(f.frames) + " deauth frames over " +
+                       String(f.durationS) + " s — " + pace + " flood (~" + String((int)rate) +
+                       " frames/s). ";
+            if (rate >= 200)
+                s += "At this pace clients drop almost immediately and struggle to re-associate.";
+            else if (rate >= 50) s += "Targeted clients see repeated disconnects across the run.";
+            else s += "Even this modest rate is enough to knock a client off briefly.";
+            return s;
+        }
+        case DEBRIEF_BEACON: {
+            String where = f.channels.isEmpty() ? String("multiple channels") : f.channels;
+            String s = "Over " + String(f.durationS) + " s of " + f.target + " across " + where +
+                       ", nearby devices filled their Wi-Fi lists with networks that do not exist. ";
+            s += f.durationS >= 60
+                     ? "Sustained spam like this makes the real network hard to pick out."
+                     : "Even a short burst is enough to clutter the scan list.";
+            return s;
+        }
+        case DEBRIEF_EVIL_PORTAL: {
+            String s = String(f.clients) + (f.clients == 1 ? " client" : " clients") +
+                       " connected and " + String(f.creds) +
+                       (f.creds == 1 ? " credential was" : " credentials were") + " captured";
+            if (f.durationS) s += " over " + String(f.durationS) + " s";
+            s += ". ";
+            if (f.creds > 0) s += "Each capture is a real account a defender would have to rotate.";
+            else if (f.clients > 0)
+                s += "Clients joined but did not submit — a good sign awareness is holding.";
+            else s += "No clients joined this run; in an authorized test, a deauth nudge pushes them over.";
+            return s;
+        }
+    }
+    return "";
+}
+
 // ---- report builder -------------------------------------------------------
 
 static String buildReportHtml(const DebriefFacts &f) {
@@ -135,13 +210,14 @@ static String buildReportHtml(const DebriefFacts &f) {
     h += "<tr><td>Duration</td><td>" + String(f.durationS) + " s</td></tr>";
     h += "</table>";
 
+    h += "<h2>Session insight</h2><p>" + dynamicInsight(f) + "</p>";
     h += "<h2>What happened</h2><p>" + lessonWhat(f.type) + "</p>";
     h += "<h2>Why it works</h2><p>" + lessonWhy(f.type) + "</p>";
     h += "<h2>Mitigations</h2><ul>" + lessonMitigations(f.type) + "</ul>";
     h += "<h2>Replicate (authorized testing)</h2><p>" + lessonReplicate(f.type) + "</p>";
 
     h += "<div class='foot'>Generated on-device by VariOne. Authorized lab/demo use only. "
-         "(Canned report; AI debrief is a future drop-in.)</div>";
+         "(Lesson content is templated; the session insight is generated from your capture.)</div>";
     h += "</div></body></html>";
     return h;
 }
@@ -150,8 +226,6 @@ static String buildReportHtml(const DebriefFacts &f) {
 
 static void serveReportLoop() {
     IPAddress apIP(192, 168, 4, 1);
-    DNSServer dnsServer;
-    AsyncWebServer server(80);
 
     // Bring the AP up via the SAME proven path as "Start WiFi AP"
     // (_setupAP in wifi_common.cpp), which broadcasts and accepts connections
@@ -180,25 +254,10 @@ static void serveReportLoop() {
     if (apSsid.isEmpty()) apSsid = "BruceAP";
     Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
 
-    dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
+    s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
 
-    auto sendReport = [](AsyncWebServerRequest *req) { req->send(200, "text/html", s_report); };
-    auto redirect = [apIP](AsyncWebServerRequest *req) {
-        AsyncWebServerResponse *r = req->beginResponse(302);
-        r->addHeader("Location", "http://" + apIP.toString() + "/");
-        req->send(r);
-    };
-
-    server.on("/", HTTP_GET, sendReport);
-    server.on("/debrief", HTTP_GET, sendReport);
-    // OS captive-portal probes -> bounce to the report so it auto-opens.
-    server.on("/generate_204", HTTP_GET, redirect);
-    server.on("/gen_204", HTTP_GET, redirect);
-    server.on("/hotspot-detect.html", HTTP_GET, redirect);
-    server.on("/redirect", HTTP_GET, redirect);
-    server.on("/ncsi.txt", HTTP_GET, redirect);
-    server.onNotFound(sendReport);
-    server.begin();
+    initDebriefHandlers(); // register routes once on the persistent server
+    s_server.begin();      // re-listen on the reused port-80 socket (no rebind race)
 
     // Draw the WiFi-join QR (scan -> join OPEN AP -> captive pops the report).
     String joinQr = String("WIFI:T:nopass;S:") + apSsid + ";;";
@@ -225,7 +284,7 @@ static void serveReportLoop() {
     uint32_t lastDiag = millis();
     int lastStations = -1;
     while (!check(EscPress)) {
-        dnsServer.processNextRequest();
+        s_dnsServer.processNextRequest();
         int st = WiFi.softAPgetStationNum();
         if (st != lastStations || millis() - lastDiag > 3000) {
             Serial.printf("[DEBRIEF][diag] stations=%d heap=%u\n", st, (unsigned)ESP.getFreeHeap());
@@ -236,8 +295,8 @@ static void serveReportLoop() {
     }
     Serial.println("[DEBRIEF] serve loop exit (BACK)");
 
-    server.end();
-    dnsServer.stop();
+    s_server.end(); // release listener; same object rebinds cleanly next debrief
+    s_dnsServer.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);
 #ifdef HAS_SCREEN
