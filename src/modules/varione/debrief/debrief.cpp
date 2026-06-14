@@ -1,0 +1,309 @@
+/*
+ * VariOne AI Debrief — implementation. See debrief.h for responsibility.
+ * Reuses Bruce's captive-portal pattern (src/modules/wifi/evil_portal.cpp) for
+ * the SoftAP + DNS + AsyncWebServer stack, and the project QR lib for the join QR.
+ */
+#include "debrief.h"
+#include "core/display.h"
+#include "core/mykeyboard.h"
+#include "core/sd_functions.h"
+#include "core/wifi/wifi_common.h"
+#include <DNSServer.h>
+#include <ESPAsyncWebServer.h>
+#include <FS.h>
+#include <SD.h>
+#include <WiFi.h>
+#include <esp_wifi.h>
+#include <globals.h>
+#include <qrcode.h>
+
+// Report HTML is held at file scope so the async web handlers (which run on a
+// separate task) reference a buffer that stays valid for the serving loop.
+static String s_report;
+
+// ---- canned per-attack lesson content -------------------------------------
+
+static String attackTitle(DebriefType t) {
+    switch (t) {
+        case DEBRIEF_DEAUTH: return "Wi-Fi Deauthentication Attack";
+        case DEBRIEF_BEACON: return "Wi-Fi Beacon Spam";
+        case DEBRIEF_EVIL_PORTAL: return "Evil Portal (Cloned AP + Captive Portal)";
+    }
+    return "Wi-Fi Attack";
+}
+
+static String lessonWhat(DebriefType t) {
+    switch (t) {
+        case DEBRIEF_DEAUTH:
+            return "The device sent forged 802.11 deauthentication frames that appear to come "
+                   "from the access point. Targeted clients were forced to disconnect.";
+        case DEBRIEF_BEACON:
+            return "The device broadcast many forged beacon frames advertising fake network "
+                   "names (SSIDs) across multiple channels, so nearby devices listed networks "
+                   "that do not really exist.";
+        case DEBRIEF_EVIL_PORTAL:
+            return "The device cloned an open access point and served a captive login page. "
+                   "Any credentials a victim typed were captured locally.";
+    }
+    return "";
+}
+
+static String lessonWhy(DebriefType t) {
+    switch (t) {
+        case DEBRIEF_DEAUTH:
+            return "In WPA/WPA2, management frames (including deauth) are not authenticated. "
+                   "Any radio in range can forge one, so the client cannot tell a real "
+                   "disconnect from a spoofed one.";
+        case DEBRIEF_BEACON:
+            return "Beacon frames are unauthenticated and sent before any association. A client "
+                   "will list whatever SSID it hears, so a name alone proves nothing about who "
+                   "runs the network.";
+        case DEBRIEF_EVIL_PORTAL:
+            return "Users trust a familiar SSID name and a convincing login page. An open AP "
+                   "needs no server authentication, so the victim has no way to verify the "
+                   "portal is legitimate before typing credentials.";
+    }
+    return "";
+}
+
+static String lessonMitigations(DebriefType t) {
+    switch (t) {
+        case DEBRIEF_DEAUTH:
+            return "<li>Enable 802.11w Protected Management Frames (PMF).</li>"
+                   "<li>Move to WPA3, which mandates PMF.</li>"
+                   "<li>Use a WIDS/WIPS to detect deauth floods.</li>";
+        case DEBRIEF_BEACON:
+            return "<li>User awareness: never trust a network by its name alone.</li>"
+                   "<li>Connect only to known SSIDs; forget open networks.</li>"
+                   "<li>Enterprise WIDS detects abnormal beacon floods.</li>";
+        case DEBRIEF_EVIL_PORTAL:
+            return "<li>Never enter credentials on a captive portal.</li>"
+                   "<li>Require HTTPS with certificate validation; watch for cert warnings.</li>"
+                   "<li>Enable 2FA so captured passwords are not enough.</li>"
+                   "<li>Prefer WPA2/WPA3-Enterprise over open Wi-Fi.</li>";
+    }
+    return "";
+}
+
+static String lessonReplicate(DebriefType t) {
+    switch (t) {
+        case DEBRIEF_DEAUTH:
+            return "Scan for APs, select a target, and send deauth frames on the target's "
+                   "channel. Observe the client drop its connection in an authorized lab.";
+        case DEBRIEF_BEACON:
+            return "Run beacon spam with channel hopping enabled and watch the fake networks "
+                   "appear in the Wi-Fi list of nearby test devices.";
+        case DEBRIEF_EVIL_PORTAL:
+            return "Clone the target SSID, serve the portal, optionally deauth to push clients "
+                   "over, and review the captured submissions on the device.";
+    }
+    return "";
+}
+
+// ---- report builder -------------------------------------------------------
+
+static String buildReportHtml(const DebriefFacts &f) {
+    String title = attackTitle(f.type);
+    String h;
+    h.reserve(4096);
+    h += "<!doctype html><html><head><meta charset='utf-8'>";
+    h += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+    h += "<title>VariOne Debrief</title><style>";
+    h += "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0f1115;color:#e8eaed}";
+    h += ".wrap{max-width:680px;margin:0 auto;padding:18px}";
+    h += "h1{font-size:20px;margin:8px 0;color:#4ea1ff}h2{font-size:16px;margin:18px 0 6px;color:#9ad}";
+    h += ".tag{display:inline-block;background:#1d2330;border:1px solid #2c3650;border-radius:6px;padding:2px 8px;font-size:12px;color:#9fb}";
+    h += "table{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px}";
+    h += "td{padding:6px 8px;border-bottom:1px solid #222a38}td:first-child{color:#8a93a6;width:40%}";
+    h += "p,li{font-size:14px;line-height:1.5}ul{margin:6px 0 6px 18px}";
+    h += ".foot{margin-top:22px;font-size:12px;color:#6b7280}";
+    h += "</style></head><body><div class='wrap'>";
+    h += "<span class='tag'>VariOne Debrief</span>";
+    h += "<h1>" + title + "</h1>";
+
+    // Session facts (real data)
+    h += "<h2>Session</h2><table>";
+    h += "<tr><td>Target</td><td>" + (f.target.isEmpty() ? String("-") : f.target) + "</td></tr>";
+    if (!f.bssid.isEmpty()) h += "<tr><td>BSSID</td><td>" + f.bssid + "</td></tr>";
+    if (!f.channels.isEmpty()) h += "<tr><td>Channel(s)</td><td>" + f.channels + "</td></tr>";
+    if (f.type == DEBRIEF_EVIL_PORTAL) {
+        h += "<tr><td>Clients</td><td>" + String(f.clients) + "</td></tr>";
+        h += "<tr><td>Credentials captured</td><td>" + String(f.creds) + "</td></tr>";
+    } else if (f.type == DEBRIEF_DEAUTH) {
+        h += "<tr><td>Frames sent</td><td>" + String(f.frames) + "</td></tr>";
+    }
+    h += "<tr><td>Duration</td><td>" + String(f.durationS) + " s</td></tr>";
+    h += "</table>";
+
+    h += "<h2>What happened</h2><p>" + lessonWhat(f.type) + "</p>";
+    h += "<h2>Why it works</h2><p>" + lessonWhy(f.type) + "</p>";
+    h += "<h2>Mitigations</h2><ul>" + lessonMitigations(f.type) + "</ul>";
+    h += "<h2>Replicate (authorized testing)</h2><p>" + lessonReplicate(f.type) + "</p>";
+
+    h += "<div class='foot'>Generated on-device by VariOne. Authorized lab/demo use only. "
+         "(Canned report; AI debrief is a future drop-in.)</div>";
+    h += "</div></body></html>";
+    return h;
+}
+
+// ---- captive portal + serving loop ----------------------------------------
+
+static void serveReportLoop() {
+    IPAddress apIP(192, 168, 4, 1);
+    DNSServer dnsServer;
+    AsyncWebServer server(80);
+
+    // Bring the AP up via the SAME proven path as "Start WiFi AP"
+    // (_setupAP in wifi_common.cpp), which broadcasts and accepts connections
+    // reliably. The debrief runs right after an attack that tears the WiFi
+    // driver down (ESP_ERR_WIFI_NOT_INIT), so do a full clean teardown first
+    // to reach the same clean state the WiFi menu has.
+    esp_wifi_set_promiscuous(false);
+    wifiDisconnect(); // softAPdisconnect + disconnect + WIFI_OFF
+    delay(400);
+
+    // Force the debrief AP OPEN (no password) so the one-scan QR join can never
+    // fail on auth. Blank the AP password in-memory only (no saveFile) around
+    // _setupAP(), then restore it so "Start WiFi AP" keeps its configured pwd.
+    String savedPwd = bruceConfig.wifiAp.pwd;
+    bruceConfig.wifiAp.pwd = "";
+    bool ok = _setupAP();
+    bruceConfig.wifiAp.pwd = savedPwd;
+    if (!ok) {
+        displayError("Debrief AP failed");
+        delay(1500);
+        return;
+    }
+    apIP = WiFi.softAPIP();
+
+    String apSsid = bruceConfig.wifiAp.ssid;
+    if (apSsid.isEmpty()) apSsid = "BruceAP";
+    Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
+
+    dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
+
+    auto sendReport = [](AsyncWebServerRequest *req) { req->send(200, "text/html", s_report); };
+    auto redirect = [apIP](AsyncWebServerRequest *req) {
+        AsyncWebServerResponse *r = req->beginResponse(302);
+        r->addHeader("Location", "http://" + apIP.toString() + "/");
+        req->send(r);
+    };
+
+    server.on("/", HTTP_GET, sendReport);
+    server.on("/debrief", HTTP_GET, sendReport);
+    // OS captive-portal probes -> bounce to the report so it auto-opens.
+    server.on("/generate_204", HTTP_GET, redirect);
+    server.on("/gen_204", HTTP_GET, redirect);
+    server.on("/hotspot-detect.html", HTTP_GET, redirect);
+    server.on("/redirect", HTTP_GET, redirect);
+    server.on("/ncsi.txt", HTTP_GET, redirect);
+    server.onNotFound(sendReport);
+    server.begin();
+
+    // Draw the WiFi-join QR (scan -> join OPEN AP -> captive pops the report).
+    String joinQr = String("WIFI:T:nopass;S:") + apSsid + ";;";
+#ifdef HAS_SCREEN
+    QRcode qrcode(&tft);
+    qrcode.init();
+    qrcode.create(joinQr);
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+    tft.setTextSize(1);
+    tft.setCursor(2, tftHeight - 8);
+    tft.print("Join " + apSsid);
+#endif
+
+    Serial.println("[DEBRIEF] AP '" + apSsid + "' up at " + apIP.toString());
+
+    // Async server runs on its own task; we only service DNS and watch for BACK.
+    // Flush any stale BACK from the attack/prompt so it can't tear the AP down.
+    check(EscPress);
+    delay(300);
+    uint32_t lastDiag = millis();
+    int lastStations = -1;
+    while (!check(EscPress)) {
+        dnsServer.processNextRequest();
+        int st = WiFi.softAPgetStationNum();
+        if (st != lastStations || millis() - lastDiag > 3000) {
+            Serial.printf("[DEBRIEF][diag] stations=%d heap=%u\n", st, (unsigned)ESP.getFreeHeap());
+            lastStations = st;
+            lastDiag = millis();
+        }
+        delay(20);
+    }
+    Serial.println("[DEBRIEF] serve loop exit (BACK)");
+
+    server.end();
+    dnsServer.stop();
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_OFF);
+#ifdef HAS_SCREEN
+    tft.fillScreen(bruceConfig.bgColor);
+#endif
+}
+
+// ---- best-effort SD persistence -------------------------------------------
+
+static void saveSessionToSd(const DebriefFacts &f) {
+    if (!sdcardMounted) return;
+    if (!SD.exists("/debrief")) SD.mkdir("/debrief");
+    String name = "/debrief/" + String(millis()) + "_" + String((int)f.type) + ".html";
+    File file = SD.open(name.c_str(), FILE_WRITE);
+    if (!file) return;
+    file.print(s_report);
+    file.close();
+    Serial.println("[DEBRIEF] saved " + name);
+}
+
+// ---- public entry ---------------------------------------------------------
+
+// Facts armed by an attack, run later from the menu (shallow stack).
+static DebriefFacts g_pending;
+static bool g_pendingValid = false;
+
+void debriefArmDeauthFlood(uint32_t frames, uint32_t durationS, int apCount) {
+    g_pending = DebriefFacts{};
+    g_pending.type = DEBRIEF_DEAUTH;
+    g_pending.target = "All scanned APs (" + String(apCount) + ")";
+    g_pending.channels = "per-AP";
+    g_pending.frames = frames;
+    g_pending.durationS = durationS;
+    g_pendingValid = true;
+}
+
+void debriefArmBeacon(const String &mode, uint32_t durationS) {
+    g_pending = DebriefFacts{};
+    g_pending.type = DEBRIEF_BEACON;
+    g_pending.target = mode.isEmpty() ? String("Beacon spam") : mode;
+    g_pending.channels = "1-11 (hopping)";
+    g_pending.durationS = durationS;
+    g_pendingValid = true;
+}
+
+void debriefRunPending() {
+    if (!g_pendingValid) return;
+    g_pendingValid = false;
+    runDebrief(g_pending);
+}
+
+void runDebrief(const DebriefFacts &facts) {
+    // An attack may have exited by setting returnToMenu; clear it so the prompt
+    // below actually renders instead of being unwound immediately.
+    returnToMenu = false;
+
+    // Auto-prompt: Debrief?  (BACK cancels via returnToMenu, leaving want=false)
+    bool want = false;
+    options = {
+        {"Debrief this attack", [&]() { want = true; }},
+        {"Skip", [&]() { want = false; }},
+    };
+    loopOptions(options);
+    options.clear();
+    if (!want) return;
+
+    s_report = buildReportHtml(facts);
+    saveSessionToSd(facts);
+
+    displayTextLine("Starting Debrief AP...");
+    delay(200);
+    serveReportLoop();
+}
