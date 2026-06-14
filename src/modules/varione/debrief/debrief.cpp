@@ -9,7 +9,6 @@
 #include "core/sd_functions.h"
 #include "core/wifi/wifi_common.h"
 #include <DNSServer.h>
-#include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <SD.h>
 #include <WiFi.h>
@@ -17,38 +16,43 @@
 #include <globals.h>
 #include <qrcode.h>
 
-// Report HTML is held at file scope so the async web handlers (which run on a
-// separate task) reference a buffer that stays valid for the serving loop.
+// Report HTML, held at file scope so the serve loop references a stable buffer.
 static String s_report;
 
-// Persistent SoftAP serving stack. The server/DNS are file-static (not stack
-// locals) so the SAME LWIP listener is reused on every debrief: begin()/end()
-// around each serve instead of constructing a fresh AsyncWebServer that would
-// race the previous one's socket release and fail with `bind error: -8` on the
-// second debrief of a session. Handlers are registered once (B1).
+// Synchronous HTTP server (NOT AsyncWebServer). AsyncTCP defers its listening-
+// socket close, so a fresh debrief — or the WebUI — that tries to bind port 80
+// next races a half-held listener: `bind error -8`, "page not reachable", and a
+// poisoned WebUI. A plain WiFiServer is driven inline from serveReportLoop and
+// stop()s synchronously, so the port is fully free the instant we leave. This
+// is the robust replacement for the persistent-AsyncWebServer attempt (B1v2).
 static DNSServer s_dnsServer;
-static AsyncWebServer s_server(80);
-static bool s_handlersInit = false;
+static WiFiServer s_httpd(80);
 
-static void initDebriefHandlers() {
-    if (s_handlersInit) return;
-    IPAddress apIP(192, 168, 4, 1); // SoftAP IP is always .4.1; safe to fix here
-    auto sendReport = [](AsyncWebServerRequest *req) { req->send(200, "text/html", s_report); };
-    auto redirect = [apIP](AsyncWebServerRequest *req) {
-        AsyncWebServerResponse *r = req->beginResponse(302);
-        r->addHeader("Location", "http://" + apIP.toString() + "/");
-        req->send(r);
-    };
-    s_server.on("/", HTTP_GET, sendReport);
-    s_server.on("/debrief", HTTP_GET, sendReport);
-    // OS captive-portal probes -> bounce to the report so it auto-opens.
-    s_server.on("/generate_204", HTTP_GET, redirect);
-    s_server.on("/gen_204", HTTP_GET, redirect);
-    s_server.on("/hotspot-detect.html", HTTP_GET, redirect);
-    s_server.on("/redirect", HTTP_GET, redirect);
-    s_server.on("/ncsi.txt", HTTP_GET, redirect);
-    s_server.onNotFound(sendReport);
-    s_handlersInit = true;
+// Serve any pending HTTP client one report response and close. Captive-portal
+// probes (generate_204, hotspot-detect, ...) get the HTML too: that "wrong"
+// answer is exactly what makes the OS pop its sign-in sheet, which opens "/".
+static void serveOneClient() {
+    WiFiClient client = s_httpd.available();
+    if (!client) return;
+
+    // Read (and discard) the request, up to the blank line, with a short guard.
+    uint32_t t0 = millis();
+    while (client.connected() && millis() - t0 < 1000) {
+        if (client.available()) {
+            String line = client.readStringUntil('\n');
+            if (line.length() <= 1) break; // CRLF-only line ends the headers
+            t0 = millis();
+        } else {
+            delay(2);
+        }
+    }
+
+    client.print("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
+    client.printf("Content-Length: %u\r\n", (unsigned)s_report.length());
+    client.print("Connection: close\r\n\r\n");
+    client.print(s_report);
+    client.flush();
+    client.stop();
 }
 
 // ---- canned per-attack lesson content -------------------------------------
@@ -256,8 +260,8 @@ static void serveReportLoop() {
 
     s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
 
-    initDebriefHandlers(); // register routes once on the persistent server
-    s_server.begin();      // re-listen on the reused port-80 socket (no rebind race)
+    s_httpd.begin();             // synchronous listener; driven inline below
+    s_httpd.setNoDelay(true);
 
     // Draw the WiFi-join QR (scan -> join OPEN AP -> captive pops the report).
     String joinQr = String("WIFI:T:nopass;S:") + apSsid + ";;";
@@ -273,9 +277,9 @@ static void serveReportLoop() {
 
     Serial.println("[DEBRIEF] AP '" + apSsid + "' up at " + apIP.toString());
 
-    // Async server runs on its own task; we only service DNS and watch for BACK.
-    // Drain any stale/held/bouncing BACK from the preceding attack or prompt for
-    // ~800 ms so it can't tear the AP down on frame 1 of the watch loop below.
+    // We drive DNS + HTTP inline and watch for BACK. Drain any stale/held/
+    // bouncing BACK from the preceding attack or prompt for ~800 ms so it can't
+    // tear the AP down on frame 1 of the watch loop below.
     uint32_t drainEnd = millis() + 800;
     while (millis() < drainEnd) {
         check(EscPress); // consume and ignore
@@ -285,17 +289,18 @@ static void serveReportLoop() {
     int lastStations = -1;
     while (!check(EscPress)) {
         s_dnsServer.processNextRequest();
+        serveOneClient(); // handle one pending HTTP request per tick
         int st = WiFi.softAPgetStationNum();
         if (st != lastStations || millis() - lastDiag > 3000) {
             Serial.printf("[DEBRIEF][diag] stations=%d heap=%u\n", st, (unsigned)ESP.getFreeHeap());
             lastStations = st;
             lastDiag = millis();
         }
-        delay(20);
+        delay(5);
     }
     Serial.println("[DEBRIEF] serve loop exit (BACK)");
 
-    s_server.end(); // release listener; same object rebinds cleanly next debrief
+    s_httpd.stop(); // synchronous close -> port 80 free immediately for next use
     s_dnsServer.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);
