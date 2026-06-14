@@ -5,22 +5,101 @@
  */
 #include "keyfob_inspect.h"
 #include "core/display.h"
+#include "modules/varione/ui/paged_text.h" // showPagedText
 #include "modules/rf/rf_scan.h"  // PRESET_KEELOQ, keeloq_identify (extern)
 #include "modules/rf/rf_utils.h" // initRfModule / deinitRfModule / reverse_bits
 #include "modules/rf/structs.h"  // RfCodes
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <RCSwitch.h>
 #include <globals.h>
+#include <vector>
 
 // keeloq_identify() is a free function with external linkage defined in
 // rf_scan.cpp; it is not declared in a public header, so forward-declare it.
 void keeloq_identify(RfCodes &instance);
 
 // --------------------------------------------------------------------------
-// Capture exactly one decoded RF code on the configured frequency. Blocks until
-// a code is decoded or BACK is pressed. Returns false on BACK / RF init error.
+// RAW fallback (B4). Many car keys do not decode under RCSwitch and/or sit off
+// the 433.92 default. When no decode arrives but a RAW waveform is buffered,
+// build a stable signature from it — the SAME quantized-CRC scheme RFScan uses
+// (find_pulse_index + crc64_ecma) so two presses of a fixed remote produce the
+// same out.key, while a rolling remote produces different keys. Returns false
+// if the buffer was just noise (no stable repeating frame).
 // --------------------------------------------------------------------------
-static bool captureOneCode(RfCodes &out, const String &prompt) {
+static bool captureRawInto(RCSwitch &rcswitch, RfCodes &out, float frequency) {
+    vTaskDelay(400 / portTICK_PERIOD_MS); // let the whole signal land in the buffer
+    unsigned int *raw = rcswitch.getRAWReceivedRawdata();
+    uint64_t decoded = rcswitch.getReceivedValue();
+
+    String dataStr = "";
+    std::vector<int> durations;         // pulse indexes, for the CRC
+    std::vector<int> indexed_durations; // distinct quantized pulse widths
+    uint8_t repetition = 0;
+    int te = 0;
+
+    for (int t = 0; t < RCSWITCH_RAW_MAX_CHANGES; t++) {
+        if (raw[t] == 0) break;
+        if (t > 0) dataStr += " ";
+        int sign = (t % 2 == 0) ? 1 : -1;
+        int duration = sign * (int)raw[t];
+        if (duration < -5000 && repetition < 2) repetition += 1;
+        dataStr += String(duration);
+        if (te == 0 && duration > 0) te = duration;
+        if (!decoded && repetition == 1 && duration >= -5000) {
+            int index = find_pulse_index(indexed_durations, duration);
+            if (index == -1) {
+                indexed_durations.push_back(abs(duration));
+                index = indexed_durations.size() - 1;
+            }
+            durations.push_back(index);
+        }
+    }
+
+    out = RfCodes();
+    out.frequency = long(frequency * 1000000);
+    out.te = te;
+    out.data = dataStr;
+
+    // A decode slipped in alongside the RAW buffer — treat it as a decode.
+    if (decoded) {
+        out.key = decoded;
+        out.preset = String(rcswitch.getReceivedProtocol());
+        out.protocol = "RcSwitch";
+        out.Bit = rcswitch.getReceivedBitlength();
+        if (rcswitch.getReceivedProtocol() == PRESET_KEELOQ) {
+            uint64_t yek = reverse_bits(decoded, 64);
+            out.fix = yek >> 32;
+            out.btn = out.fix >> 28;
+            out.encrypted = yek & 0xFFFFFFFF;
+            out.serial = (yek >> 32) & 0xFFFFFFF;
+            keeloq_identify(out);
+        }
+        rcswitch.resetAvailable();
+        return true;
+    }
+
+    // No decode, but a repeating RAW frame -> stable CRC signature we can compare.
+    if (repetition >= 2 && !durations.empty()) {
+        out.protocol = "RAW";
+        out.preset = "0";
+        out.key = crc64_ecma(durations);
+        out.indexed_durations = indexed_durations;
+        out.Bit = durations.size();
+        rcswitch.resetAvailable();
+        return true;
+    }
+
+    rcswitch.resetAvailable(); // just noise, no stable frame
+    return false;
+}
+
+// --------------------------------------------------------------------------
+// Capture exactly one code on `frequency`. Prefers an RCSwitch decode (gives
+// KeeLoq identifiers); falls back to a RAW signature for non-decoding remotes
+// (car keys). Blocks until a code is captured or BACK. Returns false on BACK /
+// RF init error.
+// --------------------------------------------------------------------------
+static bool captureOneCode(RfCodes &out, const String &prompt, float frequency) {
     drawMainBorderWithTitle("Keyfob Inspect");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     padprintln("");
@@ -30,7 +109,6 @@ static bool captureOneCode(RfCodes &out, const String &prompt) {
     padprintln("");
     padprintln("[BACK] cancel");
 
-    float frequency = bruceConfigPins.rfFreq;
     if (frequency <= 0) frequency = 433.92;
 
     if (!initRfModule("rx", frequency)) {
@@ -77,6 +155,12 @@ static bool captureOneCode(RfCodes &out, const String &prompt) {
                 break;
             }
             rcswitch.resetAvailable();
+        } else if (rcswitch.RAWavailable()) {
+            // No clean decode — try a RAW signature (car keys / odd protocols).
+            if (captureRawInto(rcswitch, out, frequency)) {
+                got = true;
+                break;
+            }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
@@ -113,6 +197,13 @@ static void showClassification(const RfCodes &a, const RfCodes &b, bool keeloq, 
             padprintln("Key: unknown");
             padprintln("(no mfr key loaded)");
         }
+    } else if (a.protocol == "RAW") {
+        // Non-decoding remote (e.g. car key): compare RAW signatures.
+        padprintln("Protocol: RAW");
+        padprintln(fixed ? "Type: FIXED" : "Type: ROLLING");
+        padprintln("Sig A: " + String(a.key, HEX));
+        padprintln("Sig B: " + String(b.key, HEX));
+        padprintln("Freq: " + String(a.frequency / 1000000.0, 2) + " MHz");
     } else {
         padprintln("Protocol: " + a.protocol + "(" + a.preset + ")");
         padprintln(fixed ? "Type: FIXED" : "Type: ROLLING");
@@ -126,58 +217,56 @@ static void showClassification(const RfCodes &a, const RfCodes &b, bool keeloq, 
 
 // --------------------------------------------------------------------------
 // Page 2: explain — why replay fails on rolling codes, and the mitigation.
+// Body text is built here and shown through the scrollable paged viewer so it
+// stays readable however long it grows.
 // --------------------------------------------------------------------------
-static void showExplain(bool keeloq, bool fixed) {
-    drawMainBorderWithTitle("Why it matters");
-    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-
+static String explainBody(bool keeloq, bool fixed) {
     if (keeloq || !fixed) {
-        padprintln("Rolling code: each");
-        padprintln("press sends a new");
-        padprintln("encrypted counter.");
-        padprintln("");
-        padprintln("Replaying a captured");
-        padprintln("code FAILS: receiver");
-        padprintln("rejects a counter it");
-        padprintln("already saw.");
-        padprintln("");
-        padprintln("Mitigation: rolling");
-        padprintln("codes (KeeLoq) are");
-        padprintln("the defense.");
-    } else {
-        padprintln("Fixed code: same code");
-        padprintln("every press.");
-        padprintln("");
-        padprintln("A single capture can");
-        padprintln("be replayed forever");
-        padprintln("to open the device.");
-        padprintln("");
-        padprintln("Mitigation: replace");
-        padprintln("with a rolling-code");
-        padprintln("remote.");
+        return "Rolling code: each press sends a new encrypted counter.\n"
+               "\n"
+               "Replaying a captured code FAILS: the receiver rejects a counter "
+               "it has already seen.\n"
+               "\n"
+               "Mitigation: rolling codes (KeeLoq) are the defense.";
     }
-
-    padprintln("");
-    padprintln("[BACK] exit");
+    return "Fixed code: the same code every press.\n"
+           "\n"
+           "A single capture can be replayed forever to open the device.\n"
+           "\n"
+           "Mitigation: replace with a rolling-code remote.";
 }
 
 void keyfob_inspect() {
     RfCodes a, b;
 
-    if (!captureOneCode(a, "Press fob (1/2)")) {
+    // Frequency pick (B4): car keys often live off 433.92. Default to the
+    // configured RF freq; let the operator override for other bands.
+    float freq = bruceConfigPins.rfFreq > 0 ? bruceConfigPins.rfFreq : 433.92;
+    returnToMenu = false;
+    options = {
+        {"433.92 MHz", [&]() { freq = 433.92; }},
+        {"315 MHz", [&]() { freq = 315.0; }},
+        {"868.35 MHz", [&]() { freq = 868.35; }},
+        {"915 MHz", [&]() { freq = 915.0; }},
+    };
+    loopOptions(options);
+    options.clear();
+    if (returnToMenu) return; // BACK out of the freq menu
+
+    if (!captureOneCode(a, "Press fob (1/2)", freq)) {
         deinitRfModule();
         return;
     }
     delay(300);
-    if (!captureOneCode(b, "Press again (2/2)")) {
+    if (!captureOneCode(b, "Press again (2/2)", freq)) {
         deinitRfModule();
         return;
     }
 
     // KeeLoq (protocol 23) sets fix != 0 and is rolling by nature. Otherwise,
-    // identical keys across two presses => FIXED; differing keys => ROLLING.
+    // identical keys/signatures across two presses => FIXED; differing => ROLLING.
     bool keeloq = (a.fix != 0);
-    bool fixed = !keeloq && (a.key == b.key);
+    bool fixed = !keeloq && a.key != 0 && (a.key == b.key);
 
     Serial.printf(
         "[KEYFOB] keeloq=%d fixed=%d A=%llx B=%llx mfr=%s\n",
@@ -191,6 +280,5 @@ void keyfob_inspect() {
     showClassification(a, b, keeloq, fixed);
     if (waitNextOrBack()) return; // BACK on page 1
 
-    showExplain(keeloq, fixed);
-    waitNextOrBack(); // any exit returns to RF menu
+    showPagedText("Why it matters", explainBody(keeloq, fixed));
 }
