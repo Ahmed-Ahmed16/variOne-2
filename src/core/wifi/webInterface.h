@@ -25,3 +25,10 @@ void configureWebServer();
 void startWebUi(bool mode_ap = false);
 void stopWebUi();
 void cleanlyStopWebUiForWiFiFeature();
+
+// Single shared port-80 server, created + begun once and never rebound.
+void ensureWebServer();
+// Serve the debrief report from the shared server at /debrief (and on captive
+// probes) until webDebriefEnd().
+void webDebriefBegin(const String &html);
+void webDebriefEnd();

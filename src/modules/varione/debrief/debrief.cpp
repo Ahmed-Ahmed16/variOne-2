@@ -7,6 +7,7 @@
 #include "core/display.h"
 #include "core/mykeyboard.h"
 #include "core/sd_functions.h"
+#include "core/wifi/webInterface.h" // shared port-80 server (webDebriefBegin/End)
 #include "core/wifi/wifi_common.h"
 #include <DNSServer.h>
 #include <FS.h>
@@ -19,41 +20,12 @@
 // Report HTML, held at file scope so the serve loop references a stable buffer.
 static String s_report;
 
-// Synchronous HTTP server (NOT AsyncWebServer). AsyncTCP defers its listening-
-// socket close, so a fresh debrief — or the WebUI — that tries to bind port 80
-// next races a half-held listener: `bind error -8`, "page not reachable", and a
-// poisoned WebUI. A plain WiFiServer is driven inline from serveReportLoop and
-// stop()s synchronously, so the port is fully free the instant we leave. This
-// is the robust replacement for the persistent-AsyncWebServer attempt (B1v2).
+// The report is served from the app's single shared AsyncWebServer (see
+// webInterface ensureWebServer/webDebriefBegin) at /debrief. We do NOT run our
+// own server here: a second port-80 owner is exactly what made AsyncTCP fail to
+// rebind (`bind error -8`) and poisoned the WebUI on the next open. We only run
+// the catch-all DNS so the join lands on the captive sheet.
 static DNSServer s_dnsServer;
-static WiFiServer s_httpd(80);
-
-// Serve any pending HTTP client one report response and close. Captive-portal
-// probes (generate_204, hotspot-detect, ...) get the HTML too: that "wrong"
-// answer is exactly what makes the OS pop its sign-in sheet, which opens "/".
-static void serveOneClient() {
-    WiFiClient client = s_httpd.available();
-    if (!client) return;
-
-    // Read (and discard) the request, up to the blank line, with a short guard.
-    uint32_t t0 = millis();
-    while (client.connected() && millis() - t0 < 1000) {
-        if (client.available()) {
-            String line = client.readStringUntil('\n');
-            if (line.length() <= 1) break; // CRLF-only line ends the headers
-            t0 = millis();
-        } else {
-            delay(2);
-        }
-    }
-
-    client.print("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
-    client.printf("Content-Length: %u\r\n", (unsigned)s_report.length());
-    client.print("Connection: close\r\n\r\n");
-    client.print(s_report);
-    client.flush();
-    client.stop();
-}
 
 // ---- canned per-attack lesson content -------------------------------------
 
@@ -260,8 +232,7 @@ static void serveReportLoop() {
 
     s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
 
-    s_httpd.begin();             // synchronous listener; driven inline below
-    s_httpd.setNoDelay(true);
+    webDebriefBegin(s_report); // arm /debrief on the shared port-80 server
 
     // Draw the WiFi-join QR (scan -> join OPEN AP -> captive pops the report).
     String joinQr = String("WIFI:T:nopass;S:") + apSsid + ";;";
@@ -289,7 +260,6 @@ static void serveReportLoop() {
     int lastStations = -1;
     while (!check(EscPress)) {
         s_dnsServer.processNextRequest();
-        serveOneClient(); // handle one pending HTTP request per tick
         int st = WiFi.softAPgetStationNum();
         if (st != lastStations || millis() - lastDiag > 3000) {
             Serial.printf("[DEBRIEF][diag] stations=%d heap=%u\n", st, (unsigned)ESP.getFreeHeap());
@@ -300,7 +270,7 @@ static void serveReportLoop() {
     }
     Serial.println("[DEBRIEF] serve loop exit (BACK)");
 
-    s_httpd.stop(); // synchronous close -> port 80 free immediately for next use
+    webDebriefEnd(); // stop serving /debrief; shared server stays up for WebUI
     s_dnsServer.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);

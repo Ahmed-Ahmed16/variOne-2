@@ -28,6 +28,17 @@ const char *host = "bruce";
 String uploadFolder = "";
 static bool mdnsRunning = false;
 
+// The AsyncWebServer / AsyncTCP listener on port 80 can NEVER be cleanly
+// rebound once torn down (end()->begin() and destruct+re-new both fail with
+// `bind error -8` until a reboot). So we create ONE server, begin() it once,
+// and never destroy it. "Stopping" the WebUI just lowers a flag; the listener
+// stays up and is reused on the next open. The debrief report is served from
+// the SAME server (path /debrief) instead of its own WiFiServer, so the whole
+// app has a single port-80 owner and rebinding never happens.
+static bool s_webRoutesRegistered = false;  // WebUI app routes added once
+static volatile bool s_debriefActive = false; // gates the debrief responses
+static String s_debriefHtml;                // current debrief report HTML
+
 // Generate random token
 String generateToken(int length = 24) {
     String token = "";
@@ -41,12 +52,11 @@ String generateToken(int length = 24) {
 **  Turn off the WebUI
 **********************************************************************/
 void stopWebUi() {
+    // Do NOT end()/free the server: AsyncTCP can't rebind port 80 afterwards
+    // (bind error -8 until reboot). Keep the listener up and just lower the
+    // active flag; the next startWebUi() reuses the same server.
     tft.setLogging(false);
     isWebUIActive = false;
-    server->end();
-    server->~AsyncWebServer();
-    free(server);
-    server = nullptr;
     if (mdnsRunning) {
         MDNS.end();
         mdnsRunning = false;
@@ -391,12 +401,80 @@ static bool startMdnsResponder() {
 
 /**********************************************************************
 **  Function: configureWebServer
+**  shared port-80 handlers (mode-aware: WebUI vs debrief)
+**********************************************************************/
+// When a debrief is active, unknown paths return the report (so the OS captive
+// sheet, which fetches a probe URL and opens whatever it gets, shows it).
+// Otherwise behave exactly as the WebUI did before: 404.
+static void sharedNotFound(AsyncWebServerRequest *request) {
+    if (s_debriefActive) {
+        request->send(200, "text/html", s_debriefHtml);
+        return;
+    }
+    notFound(request);
+}
+
+// OS captive-portal probes: bounce to /debrief during a debrief, else 404.
+static void captiveProbe(AsyncWebServerRequest *request) {
+    if (s_debriefActive) {
+        AsyncWebServerResponse *r = request->beginResponse(302);
+        r->addHeader("Location", "http://192.168.4.1/debrief");
+        request->send(r);
+        return;
+    }
+    notFound(request);
+}
+
+/**********************************************************************
+**  Function: ensureWebServer
+**  Create + begin the single shared web server exactly once. Safe to call
+**  from both the WebUI and the debrief; subsequent calls are no-ops.
+**********************************************************************/
+void ensureWebServer() {
+    if (server) return;
+
+    if (psramFound()) server = (AsyncWebServer *)ps_malloc(sizeof(AsyncWebServer));
+    else server = (AsyncWebServer *)malloc(sizeof(AsyncWebServer));
+    new (server) AsyncWebServer(default_webserverporthttp);
+
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+
+    // Debrief report + captive routes live on the shared server so it owns
+    // port 80 for the whole app and is never rebound.
+    server->on("/debrief", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", s_debriefHtml);
+    });
+    server->on("/generate_204", HTTP_GET, captiveProbe);
+    server->on("/gen_204", HTTP_GET, captiveProbe);
+    server->on("/hotspot-detect.html", HTTP_GET, captiveProbe);
+    server->on("/redirect", HTTP_GET, captiveProbe);
+    server->on("/ncsi.txt", HTTP_GET, captiveProbe);
+    server->onNotFound(sharedNotFound);
+
+    server->begin();
+    Serial.println("[WEB] shared server listening on :80 (persistent)");
+}
+
+/**********************************************************************
+**  Function: webDebriefBegin / webDebriefEnd
+**  Arm/disarm serving a debrief report from the shared server.
+**********************************************************************/
+void webDebriefBegin(const String &html) {
+    s_debriefHtml = html;
+    s_debriefActive = true;
+    ensureWebServer();
+}
+
+void webDebriefEnd() {
+    s_debriefActive = false;
+    s_debriefHtml = "";
+}
+
+/**********************************************************************
 **  configure web server
 **********************************************************************/
 void configureWebServer() {
     mdnsRunning = startMdnsResponder();
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-    server->onNotFound(notFound);
 
     // Index
     server->on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -736,8 +814,7 @@ void configureWebServer() {
             }
         }
     });
-    server->begin();
-    Serial.println("Webserver started");
+    Serial.println("WebUI routes registered on shared server");
 }
 
 /**********************************************************************
@@ -755,20 +832,17 @@ void startWebUi(bool mode_ap) {
 
     // configure web server
 
-    if (!server) {
-        // Clear this vector to free stack memory
-        options.clear();
-
+    // Single shared server, created+begun once; WebUI app routes added once.
+    options.clear(); // free stack memory
+    ensureWebServer();
+    if (!s_webRoutesRegistered) {
         Serial.println("Configuring Webserver ...");
-        if (psramFound()) server = (AsyncWebServer *)ps_malloc(sizeof(AsyncWebServer));
-        else server = (AsyncWebServer *)malloc(sizeof(AsyncWebServer));
-
-        new (server) AsyncWebServer(default_webserverporthttp);
-
         configureWebServer();
-
-        isWebUIActive = true;
+        s_webRoutesRegistered = true;
+    } else if (!mdnsRunning) {
+        mdnsRunning = startMdnsResponder(); // mDNS is torn down on stop; re-arm it
     }
+    isWebUIActive = true;
     tft.setLogging();
     drawWebUiScreen(mode_ap);
 #ifdef HAS_SCREEN // Headless always run in the background!
