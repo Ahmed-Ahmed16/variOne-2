@@ -141,6 +141,8 @@ void tft_display::init(uint8_t tc) {
     begin();
 }
 
+void tft_display::initBus() { RUN_ON_MUTEX(lgfx::LGFX_Device::initBus()); }
+
 void tft_display::setRotation(uint8_t r) {
     lgfx::LGFX_Device::setRotation(r);
     _rotation = r;

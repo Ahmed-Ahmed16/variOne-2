@@ -23,6 +23,8 @@ void tft_display::init(uint8_t tc) {
     M5.begin();
 }
 
+void tft_display::initBus() {}
+
 void tft_display::setRotation(uint8_t r) {
     M5.Display.setRotation(r);
     _rotation = r;

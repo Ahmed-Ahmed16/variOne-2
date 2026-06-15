@@ -144,6 +144,8 @@ void tft_display::init(uint8_t tc) {
     begin();
 }
 
+void tft_display::initBus() {}
+
 void tft_display::setRotation(uint8_t r) {
     if (_gfx) _gfx->setRotation(r);
     _rotation = r;

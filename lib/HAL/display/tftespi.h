@@ -43,6 +43,7 @@ public:
     using TFT_eSPI::getTextDatum;
     using TFT_eSPI::height;
     using TFT_eSPI::init;
+    using TFT_eSPI::initBus;
     using TFT_eSPI::invertDisplay;
     using TFT_eSPI::print;
     using TFT_eSPI::printf;

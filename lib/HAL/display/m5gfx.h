@@ -20,6 +20,7 @@ public:
 
     void begin(uint32_t speed = 0);
     void init(uint8_t tc = 0);
+    void initBus();
     void setRotation(uint8_t r);
     void drawPixel(int32_t x, int32_t y, uint32_t color);
     void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color);
