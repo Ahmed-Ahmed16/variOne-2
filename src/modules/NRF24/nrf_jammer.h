@@ -62,6 +62,9 @@ struct NrfJamModeInfo {
 /// Main jammer with mode selection menu
 void nrf_jammer();
 
+/// Headless duration-based jammer for serial CLI use. Does not draw to TFT.
+bool nrf_serial_jam(const String &modeName, uint32_t durationMs, uint16_t dwellMs = 0, bool flooding = false);
+
 /// Direct entry to single channel jammer
 void nrf_channel_jammer();
 

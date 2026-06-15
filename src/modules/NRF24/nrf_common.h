@@ -23,10 +23,19 @@ enum NRF24_MODE {
 
 extern RF24 NRFradio;
 extern HardwareSerial NRFSerial; // Uses UART2 for External NRF's
+extern SPIClass *NRFSPI;
 
 NRF24_MODE nrf_setMode();
 
 bool nrf_start(NRF24_MODE mode);
+
+// VariOne S3: NRF (SPI3/HSPI) and TFT (SPI2) share physical GPIO 11/12.
+// LovyanGFX routes its pins only at bus init, so each NRF<->TFT handoff needs
+// an explicit GPIO re-mux. Call nrf_claimBus() before a batch of NRF SPI reads,
+// nrf_releaseBusToDisplay() before drawing to the TFT. No-ops on boards where
+// the NRF does not share the display's pins.
+void nrf_claimBus();
+void nrf_releaseBusToDisplay();
 
 void nrf_info();
 #endif

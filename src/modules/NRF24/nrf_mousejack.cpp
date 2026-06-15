@@ -668,6 +668,7 @@ static bool mj_scan() {
     };
     for (uint8_t i = 0; i < 6; i++) { NRFradio.openReadingPipe(i, noiseAddress[i]); }
 
+    nrf_releaseBusToDisplay(); // hand pins to the TFT for the initial draw
     mj_drawScanScreen(0, true);
 
     uint8_t lastDrawnCount = 0;
@@ -682,6 +683,7 @@ static bool mj_scan() {
                 break;
             }
 
+            nrf_claimBus(); // NRF read phase: take pins onto SPI3
             NRFradio.setChannel(ch);
             NRFradio.startListening();
 
@@ -699,6 +701,7 @@ static bool mj_scan() {
 
             // Refresh display periodically
             if (millis() - lastRefresh > 200 || mj_targetCount != lastDrawnCount) {
+                nrf_releaseBusToDisplay(); // TFT draw phase: hand pins back to SPI2
                 mj_drawScanScreen(ch, false);
                 lastDrawnCount = mj_targetCount;
                 lastRefresh = millis();
@@ -706,8 +709,10 @@ static bool mj_scan() {
         }
     }
 
+    nrf_claimBus();
     NRFradio.stopListening();
     NRFradio.powerDown();
+    nrf_releaseBusToDisplay(); // caller draws menus next — leave pins on the TFT
     return (mj_targetCount > 0);
 }
 
@@ -786,6 +791,7 @@ static void mj_attackString(int targetIndex) {
     mj_typeString(target, text.c_str());
 
     NRFradio.powerDown();
+    nrf_releaseBusToDisplay(); // hand pins back before the TFT result screen
     displaySuccess("Injection complete", true);
 }
 
@@ -884,6 +890,7 @@ static void mj_attackDucky(int targetIndex) {
 
     file.close();
     NRFradio.powerDown();
+    nrf_releaseBusToDisplay(); // hand pins back before the TFT result screen
     displaySuccess("Script complete", true);
 }
 

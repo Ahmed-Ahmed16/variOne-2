@@ -243,13 +243,23 @@ static void floodChannel(uint8_t ch, uint16_t dwellMs) {
 // stopConstCarrier() → powerDown() clears the internal PWR_UP flag,
 // and startConstCarrier() never restores it (RF24 library bug).
 static void initCW(int channel) {
+    Serial.println("[CW DBG] powerUp");
+    Serial.flush();
     NRFradio.powerUp();
     delay(5); // Tpd2stby: power-down → standby settle
+    Serial.println("[CW DBG] setPALevel");
+    Serial.flush();
     NRFradio.setPALevel(RF24_PA_MAX);
+    Serial.println("[CW DBG] startConstCarrier");
+    Serial.flush();
     NRFradio.startConstCarrier(RF24_PA_MAX, channel);
+    Serial.println("[CW DBG] post-startConstCarrier");
+    Serial.flush();
     NRFradio.setAddressWidth(5);
     NRFradio.setPayloadSize(2);
     NRFradio.setDataRate(RF24_2MBPS);
+    Serial.println("[CW DBG] initCW done");
+    Serial.flush();
 }
 
 // ── CW on a channel ─────────────────────────────────────────────
@@ -267,6 +277,138 @@ static void cwChannel(uint8_t ch, uint16_t dwellMs) {
     } else {
         delay(dwellMs);
     }
+}
+
+static bool parseSerialJamMode(const String &modeName, NrfJamMode &mode, int &singleChannel) {
+    String name = modeName;
+    name.trim();
+    name.toLowerCase();
+    singleChannel = -1;
+
+    if (name.startsWith("ch:") || name.startsWith("channel:")) {
+        int sep = name.indexOf(':');
+        singleChannel = name.substring(sep + 1).toInt();
+        if (singleChannel < 0 || singleChannel > 125) return false;
+        mode = NRF_JAM_FULL;
+        return true;
+    }
+
+    if (name == "full" || name == "all" || name == "sweep") mode = NRF_JAM_FULL;
+    else if (name == "wifi" || name == "wi-fi") mode = NRF_JAM_WIFI;
+    else if (name == "ble") mode = NRF_JAM_BLE;
+    else if (name == "bleadv" || name == "ble_adv" || name == "adv") mode = NRF_JAM_BLE_ADV;
+    else if (name == "bt" || name == "bluetooth") mode = NRF_JAM_BLUETOOTH;
+    else if (name == "usb" || name == "mouse" || name == "dongle") mode = NRF_JAM_USB;
+    else if (name == "video" || name == "fpv") mode = NRF_JAM_VIDEO;
+    else if (name == "rc") mode = NRF_JAM_RC;
+    else if (name == "zigbee" || name == "thread") mode = NRF_JAM_ZIGBEE;
+    else if (name == "drone") mode = NRF_JAM_DRONE;
+    else return false;
+
+    return true;
+}
+
+bool nrf_serial_jam(const String &modeName, uint32_t durationMs, uint16_t dwellMs, bool flooding) {
+    NrfJamMode mode = NRF_JAM_FULL;
+    int singleChannel = -1;
+    if (!parseSerialJamMode(modeName, mode, singleChannel)) {
+        serialDevice->println("Invalid NRF jam mode");
+        return false;
+    }
+
+    if (durationMs == 0) durationMs = 10000;
+    if (durationMs > 300000UL) durationMs = 300000UL;
+    if (dwellMs > 200) dwellMs = 200;
+
+    serialDevice->print("NRF jam starting: mode=");
+    serialDevice->print(modeName);
+    serialDevice->print(" duration=");
+    serialDevice->print(durationMs / 1000);
+    serialDevice->print("s dwell=");
+    serialDevice->print(dwellMs);
+    serialDevice->print("ms strategy=");
+    serialDevice->println(flooding ? "flood" : "cw");
+    serialDevice->println("Display handoff disabled while serial jam runs.");
+
+    if (!nrf_start(NRF_MODE_SPI)) {
+        serialDevice->println("NRF24 not found");
+        return false;
+    }
+
+    nrf_claimBus();
+
+    NrfJamConfig cfg = jamConfigs[(uint8_t)mode];
+    cfg.dwellTimeMs = dwellMs;
+    cfg.useFlooding = flooding ? 1 : 0;
+
+    int channel = singleChannel >= 0 ? singleChannel : 0;
+    int hopIndex = 0;
+    uint32_t nextPrintMs = millis() + 1000;
+
+    Serial.printf("[SJAM DBG] pre-config flooding=%d ch=%d\n", flooding ? 1 : 0, channel);
+    Serial.flush();
+    if (flooding) applyJamConfig(cfg, true);
+    else initCW(channel);
+    Serial.println("[SJAM DBG] post-config");
+    Serial.flush();
+
+    uint32_t startMs = millis();
+    while ((uint32_t)(millis() - startMs) < durationMs) {
+        nrf_claimBus();
+        Serial.println("[SJAM DBG] pre-jam-call");
+        Serial.flush();
+
+        if (singleChannel >= 0) {
+            if (flooding) floodChannel((uint8_t)singleChannel, dwellMs);
+            else cwChannel((uint8_t)singleChannel, dwellMs);
+            channel = singleChannel;
+        } else {
+            switch (mode) {
+                case NRF_JAM_FULL:
+                case NRF_JAM_DRONE:
+                    if (flooding) floodChannel((uint8_t)hopIndex, dwellMs);
+                    else cwChannel((uint8_t)hopIndex, dwellMs);
+                    channel = hopIndex;
+                    hopIndex = (hopIndex + 1) % 125;
+                    break;
+
+                default: {
+                    size_t count = 0;
+                    const uint8_t *channels = getChannelList(mode, count);
+                    if (count > 0 && channels) {
+                        uint8_t ch = channels[hopIndex % count];
+                        if (flooding) floodChannel(ch, dwellMs);
+                        else cwChannel(ch, dwellMs);
+                        channel = ch;
+                        hopIndex = (hopIndex + 1) % (int)count;
+                    } else {
+                        delay(1);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if ((int32_t)(millis() - nextPrintMs) >= 0) {
+            serialDevice->print("NRF jam active: ch=");
+            serialDevice->print(channel);
+            serialDevice->print(" elapsed=");
+            serialDevice->print((millis() - startMs) / 1000);
+            serialDevice->println("s");
+            nextPrintMs += 1000;
+        }
+
+        taskYIELD();
+    }
+
+    nrf_claimBus();
+    NRFradio.stopConstCarrier();
+    NRFradio.flush_tx();
+    NRFradio.powerDown();
+    nrf_releaseBusToDisplay();
+
+    serialDevice->println("NRF jam stopped");
+    return true;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -443,6 +585,7 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
         NRFSPI = 1;
     }
 
+    nrf_releaseBusToDisplay(); // initial status draw — hand pins to the TFT
     drawJammerStatus(currentMode, channel, NRFOnline, true);
 
     if (CHECK_NRF_UART(nrfMode) || CHECK_NRF_BOTH(nrfMode)) {
@@ -480,13 +623,18 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
 
         // ── Config: press SEL to edit mode config ───────────────
         if (check(SelPress)) {
-            if (CHECK_NRF_SPI(nrfMode)) NRFradio.stopConstCarrier();
+            if (CHECK_NRF_SPI(nrfMode)) {
+                nrf_claimBus();
+                NRFradio.stopConstCarrier();
+            }
+            nrf_releaseBusToDisplay(); // editModeConfig draws — hand pins to the TFT
             editModeConfig(currentMode);
 
             // Re-apply config after edit — must use initCW() because
             // stopConstCarrier() → powerDown() clears internal PWR_UP,
             // and bare startConstCarrier() never restores it.
             if (CHECK_NRF_SPI(nrfMode)) {
+                nrf_claimBus();
                 NrfJamConfig &cfg = jamConfigs[(uint8_t)currentMode];
                 if (cfg.useFlooding) {
                     applyJamConfig(cfg, true);
@@ -503,6 +651,7 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
             currentMode = (NrfJamMode)(((uint8_t)currentMode + 1) % NRF_JAM_MODE_COUNT);
             hopIndex = 0;
             if (CHECK_NRF_SPI(nrfMode)) {
+                nrf_claimBus();
                 NrfJamConfig &prevCfg = jamConfigs[(uint8_t)prevMode];
                 NrfJamConfig &cfg = jamConfigs[(uint8_t)currentMode];
                 if (prevCfg.useFlooding != cfg.useFlooding) {
@@ -524,6 +673,7 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
             currentMode = (NrfJamMode)(((uint8_t)currentMode + NRF_JAM_MODE_COUNT - 1) % NRF_JAM_MODE_COUNT);
             hopIndex = 0;
             if (CHECK_NRF_SPI(nrfMode)) {
+                nrf_claimBus();
                 NrfJamConfig &prevCfg = jamConfigs[(uint8_t)prevMode];
                 NrfJamConfig &cfg = jamConfigs[(uint8_t)currentMode];
                 if (prevCfg.useFlooding != cfg.useFlooding) {
@@ -540,6 +690,7 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
 
         // ── Redraw on state changes only (no periodic redraw) ───
         if (redraw) {
+            nrf_releaseBusToDisplay(); // hand pins to the TFT for the status redraw
             drawJammerStatus(currentMode, channel, NRFOnline, true);
             redraw = false;
         }
@@ -549,6 +700,8 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
             delay(10);
             continue;
         }
+
+        nrf_claimBus(); // radio TX phase: take pins onto SPI3
 
         NrfJamConfig &cfg = jamConfigs[(uint8_t)currentMode];
         bool flooding = cfg.useFlooding;
@@ -587,9 +740,11 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
 
     // ── Cleanup ─────────────────────────────────────────────────
     if (CHECK_NRF_SPI(nrfMode)) {
+        nrf_claimBus();
         NRFradio.stopConstCarrier();
         NRFradio.flush_tx();
         NRFradio.powerDown();
+        nrf_releaseBusToDisplay(); // caller draws menus next — leave pins on the TFT
     }
     if (CHECK_NRF_UART(nrfMode) || CHECK_NRF_BOTH(nrfMode)) { NRFSerial.println("OFF"); }
 }
@@ -700,6 +855,7 @@ void nrf_channel_jammer() {
         }
 
         if (redraw) {
+            nrf_releaseBusToDisplay(); // hand pins to the TFT for the redraw
             drawMainBorderWithTitle("SINGLE CH JAMMER");
 
             int contentY = BORDER_PAD_Y + FM * LH + 4;
@@ -740,6 +896,7 @@ void nrf_channel_jammer() {
         if (check(SelPress)) {
             paused = !paused;
             if (CHECK_NRF_SPI(mode)) {
+                nrf_claimBus();
                 if (paused) {
                     NRFradio.stopConstCarrier();
                 } else {
@@ -753,6 +910,7 @@ void nrf_channel_jammer() {
             channel++;
             if (channel > 125) channel = 0;
             if (CHECK_NRF_SPI(mode) && !paused) {
+                nrf_claimBus();
                 NRFradio.setChannel(channel);
                 NRFradio.startConstCarrier(RF24_PA_MAX, channel);
             }
@@ -762,6 +920,7 @@ void nrf_channel_jammer() {
             channel--;
             if (channel < 0) channel = 125;
             if (CHECK_NRF_SPI(mode) && !paused) {
+                nrf_claimBus();
                 NRFradio.setChannel(channel);
                 NRFradio.startConstCarrier(RF24_PA_MAX, channel);
             }
@@ -769,7 +928,11 @@ void nrf_channel_jammer() {
         }
     }
 
-    if (CHECK_NRF_SPI(mode)) NRFradio.stopConstCarrier();
+    if (CHECK_NRF_SPI(mode)) {
+        nrf_claimBus();
+        NRFradio.stopConstCarrier();
+        nrf_releaseBusToDisplay(); // caller draws menus next — leave pins on the TFT
+    }
     if (CHECK_NRF_UART(mode) || CHECK_NRF_BOTH(mode)) NRFSerial.println("OFF");
 }
 
@@ -802,6 +965,7 @@ void nrf_channel_hopper() {
         if (check(EscPress)) return;
 
         if (redraw) {
+            nrf_releaseBusToDisplay(); // hand pins to the TFT for the config redraw
             drawMainBorderWithTitle("HOPPER CONFIG");
             tft.setTextSize(FP);
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
@@ -871,17 +1035,22 @@ void nrf_channel_hopper() {
                     );
                 }
 
-                if (CHECK_NRF_SPI(nrfMode)) { initCW(hopCfg.startChannel); }
+                if (CHECK_NRF_SPI(nrfMode)) {
+                    nrf_claimBus();
+                    initCW(hopCfg.startChannel);
+                }
 
                 int ch = hopCfg.startChannel;
                 bool hopRedraw = true;
 
+                nrf_releaseBusToDisplay(); // hand pins to the TFT for the hopper header
                 drawMainBorderWithTitle("CH HOPPER");
 
                 while (true) {
                     if (check(EscPress)) break;
 
                     if (hopRedraw) {
+                        nrf_releaseBusToDisplay(); // hand pins to the TFT for the hopper redraw
                         int contentY = BORDER_PAD_Y + FM * LH + 4;
                         int lineHop = max(14, tftHeight / 10);
                         tft.setTextSize(FP);
@@ -914,7 +1083,10 @@ void nrf_channel_hopper() {
                         hopRedraw = false;
                     }
 
-                    if (CHECK_NRF_SPI(nrfMode)) { cwChannel(ch, 0); }
+                    if (CHECK_NRF_SPI(nrfMode)) {
+                        nrf_claimBus();
+                        cwChannel(ch, 0);
+                    }
 
                     ch += hopCfg.stepSize;
                     if (ch > hopCfg.stopChannel) {
@@ -924,8 +1096,10 @@ void nrf_channel_hopper() {
                 }
 
                 if (CHECK_NRF_SPI(nrfMode)) {
+                    nrf_claimBus();
                     NRFradio.stopConstCarrier();
                     NRFradio.powerDown();
+                    nrf_releaseBusToDisplay();
                 }
                 if (CHECK_NRF_UART(nrfMode) || CHECK_NRF_BOTH(nrfMode)) { NRFSerial.println("OFF"); }
                 return;

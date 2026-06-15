@@ -106,6 +106,15 @@ static inline void getBarGeom(int i, int &x, int &w) {
 // ── Scanning and drawing ────────────────────────────────────────
 String scanChannels(bool web) {
     String result = web ? "{" : "";
+    static uint8_t spectrumDbgCount = 0;
+    bool dbg = spectrumDbgCount < 8;
+
+    // ── NRF read phase: claim the shared SPI pins (11/12) onto SPI3 ──
+    if (dbg) {
+        Serial.printf("[NRF SPEC] scan #%u claim\n", spectrumDbgCount);
+        Serial.flush();
+    }
+    nrf_claimBus();
 
     // Toggle CE low during channel switch
     digitalWrite(bruceConfigPins.NRF24_bus.io0, LOW);
@@ -143,6 +152,17 @@ String scanChannels(bool web) {
     }
 
     digitalWrite(bruceConfigPins.NRF24_bus.io0, HIGH);
+
+    // ── TFT draw phase: hand the shared SPI pins (11/12) back to SPI2 ──
+    if (dbg) {
+        Serial.printf("[NRF SPEC] scan #%u release\n", spectrumDbgCount);
+        Serial.flush();
+    }
+    nrf_releaseBusToDisplay();
+    if (dbg) {
+        Serial.printf("[NRF SPEC] scan #%u draw begin\n", spectrumDbgCount);
+        Serial.flush();
+    }
 
     // ── Draw spectrum bars ──────────────────────────────────────
     uint8_t maxLevel = 0;
@@ -235,6 +255,12 @@ String scanChannels(bool web) {
         }
     }
 
+    if (dbg) {
+        Serial.printf("[NRF SPEC] scan #%u draw done\n", spectrumDbgCount);
+        Serial.flush();
+        spectrumDbgCount++;
+    }
+
     if (web) result += "}";
     return result;
 }
@@ -301,8 +327,10 @@ void nrf_spectrum() {
             }
         }
 
+        nrf_claimBus();
         NRFradio.stopListening();
         NRFradio.powerDown();
+        nrf_releaseBusToDisplay();
         delay(250);
     } else {
         Serial.println("Fail Starting radio");
