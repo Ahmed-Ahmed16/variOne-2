@@ -584,11 +584,16 @@ void display_signal_data(RfCodes received) {
 }
 
 bool RCSwitch_SaveSignal(float frequency, RfCodes codes, bool raw, char *key, bool autoSave) {
-    FS *fs;
+    // VariOne S3: SubGHz saves are forced onto LittleFS. SD shares the SPI bus
+    // with the CC1101; saving a .sub right after RX collides with the radio mid-
+    // transaction (sdCommand cmd 0x00) so the SD write fails. IR/NFC/WiFi still
+    // use getFsStorage()->SD. Revert to getFsStorage(fs) once SD shares the
+    // CC1101 bus correctly under the SpiBus mutex.
+    FS *fs = &LittleFS;
     String filename = "";
 
-    if (!getFsStorage(fs)) {
-        displayError("No space left on device", true);
+    if (!checkLittleFsSize()) {
+        displayError("LittleFS is Full", true);
         return false;
     }
 
