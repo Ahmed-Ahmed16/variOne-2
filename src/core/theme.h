@@ -25,6 +25,10 @@ struct themeFiles {
     String boot_img = "";
     String boot_sound = "";
     String lora = "";
+    String vemo_scan = "";
+    String vemo_head = "";
+    String vemo_success = "";
+    String vemo_error = "";
 };
 
 struct themeInfo {
@@ -51,6 +55,10 @@ struct themeInfo {
     bool boot_img = false;
     bool boot_sound = false;
     bool lora = false;
+    bool vemo_scan = false;
+    bool vemo_head = false;
+    bool vemo_success = false;
+    bool vemo_error = false;
     int gifDuration = 0;
 
     // Theme file paths, colors and border

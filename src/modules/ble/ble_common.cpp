@@ -1,6 +1,7 @@
 #include "ble_common.h"
 #include "core/mykeyboard.h"
 #include "core/utils.h"
+#include "modules/varione/ui/vemo_status.h"
 #include "esp_mac.h"
 #define SERVICE_UUID "1bc68b2a-f3e3-11e9-81b4-2a2ae2dbcce4"
 #define CHARACTERISTIC_RX_UUID "1bc68da0-f3e3-11e9-81b4-2a2ae2dbcce4"
@@ -119,7 +120,7 @@ void ble_scan_setup() {
 }
 
 void ble_scan() {
-    displayTextLine("Scanning..");
+    VariOneUI::showVemoStatus("Scanning BLE");
 
     options = {};
     ble_scan_setup();

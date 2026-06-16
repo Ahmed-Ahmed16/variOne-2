@@ -3,6 +3,14 @@
 #include "utils.h"
 #include <globals.h>
 
+static bool isBoardHiddenMenu(const String &itemName) {
+#if defined(VARIONE_HIDE_UNSUPPORTED_MENUS)
+    return itemName == "Ethernet" || itemName == "GPS" || itemName == "LoRa" || itemName == "FM";
+#else
+    return false;
+#endif
+}
+
 MainMenu::MainMenu() {
     _menuItems = {
         &wifiMenu,
@@ -46,7 +54,8 @@ void MainMenu::begin(void) {
     std::vector<String> l = bruceConfig.disabledMenus;
     for (int i = 0; i < _totalItems; i++) {
         String itemName = _menuItems[i]->getName();
-        if (find(l.begin(), l.end(), itemName) == l.end()) { // If menu item is not disabled
+        if (!isBoardHiddenMenu(itemName) &&
+            find(l.begin(), l.end(), itemName) == l.end()) { // If menu item is not disabled
             options.push_back(
                 {// selected lambda
                  _menuItems[i]->getName(),
@@ -84,6 +93,7 @@ RESTART: // using gotos to avoid stackoverflow after many choices
     options.clear();
     for (auto item : items) {
         String label = item->getName();
+        if (isBoardHiddenMenu(label)) continue;
         std::vector<String> l = bruceConfig.disabledMenus;
         bool enabled = find(l.begin(), l.end(), label) == l.end();
         options.push_back({label, [this, label]() { bruceConfig.addDisabledMenu(label); }, enabled});

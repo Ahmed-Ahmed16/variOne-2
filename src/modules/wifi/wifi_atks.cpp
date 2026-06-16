@@ -16,6 +16,7 @@
 #include "evil_portal.h"
 #include "karma_attack.h"
 #include "modules/varione/debrief/debrief.h"
+#include "modules/varione/ui/vemo_status.h"
 #include "sniffer.h"
 #include "vector"
 #include <Arduino.h>
@@ -302,7 +303,7 @@ void wifi_atk_menu() {
     }
     if (scanAtks) {
         int nets;
-        displayTextLine("Scanning..");
+        VariOneUI::showVemoStatus("Scanning WiFi");
         // include hidden networks in the scan depending on toggle
         nets = WiFi.scanNetworks(false, showHiddenNetworks);
         ap_records.clear();
@@ -390,7 +391,7 @@ void deauthFloodAttack() {
     uint32_t debriefTotalFrames = 0;
     int nets;
 ScanNets:
-    displayTextLine("Scanning..");
+    VariOneUI::showVemoStatus("Scanning WiFi");
     // include hidden networks in the scan depending on toggle
     nets = WiFi.scanNetworks(false, showHiddenNetworks);
     ap_records.clear();

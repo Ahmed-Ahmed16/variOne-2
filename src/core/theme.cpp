@@ -58,7 +58,11 @@ bool BruceTheme::openThemeFile(FS *fs, String filepath, bool overwriteConfigSett
         {"config",      &theme.config,      theme.paths.config     },
         {"boot_img",    &theme.boot_img,    theme.paths.boot_img   },
         {"boot_sound",  &theme.boot_sound,  theme.paths.boot_sound },
-        {"lora",        &theme.lora,        theme.paths.lora       }
+        {"lora",        &theme.lora,        theme.paths.lora       },
+        {"vemo_scan",  &theme.vemo_scan,  theme.paths.vemo_scan },
+        {"vemo_head",  &theme.vemo_head,  theme.paths.vemo_head },
+        {"vemo_success", &theme.vemo_success, theme.paths.vemo_success},
+        {"vemo_error", &theme.vemo_error, theme.paths.vemo_error}
     };
 
     JsonObject _th = jsonDoc.as<JsonObject>();

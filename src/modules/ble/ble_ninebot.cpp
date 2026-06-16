@@ -10,6 +10,7 @@
 #include "ble_ninebot.h"
 #include "core/mykeyboard.h"
 #include "core/utils.h"
+#include "modules/varione/ui/vemo_status.h"
 #include <functional>
 #include <vector>
 
@@ -132,7 +133,7 @@ void BLENinebot::loop() {
 
     while (!check(EscPress)) {
         redrawMainBorder();
-        displayTextLine("Scanning...");
+        VariOneUI::showVemoStatus("Scanning BLE");
 #ifdef NIMBLE_V2_PLUS
         NimBLEScanResults results = pBLEScan->getResults(SCAN_TIME * 1000, false);
 #else

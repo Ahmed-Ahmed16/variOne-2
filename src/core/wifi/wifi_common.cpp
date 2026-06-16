@@ -5,6 +5,7 @@
 #include "core/settings.h"
 #include "core/utils.h"
 #include "core/wifi/wifi_mac.h" // Set Mac Address - @IncursioHack
+#include "modules/varione/ui/vemo_status.h"
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_wifi.h>
@@ -232,7 +233,7 @@ bool wifiConnectMenu(wifi_mode_t mode) {
 
             bool refresh_scan = false;
             do {
-                displayTextLine("Scanning..");
+                VariOneUI::showVemoStatus("Scanning WiFi");
                 nets = WiFi.scanNetworks();
                 options = {};
                 for (int i = 0; i < nets; i++) {
@@ -351,7 +352,7 @@ bool wifiConnecttoKnownNet(void) {
     bool result = false;
     int nets;
     // WiFi.mode(WIFI_MODE_STA);
-    displayTextLine("Scanning Networks..");
+    VariOneUI::showVemoStatus("Scanning WiFi");
     WiFi.disconnect(true, true);
     vTaskDelay(10 / portTICK_PERIOD_MS);
     nets = WiFi.scanNetworks();

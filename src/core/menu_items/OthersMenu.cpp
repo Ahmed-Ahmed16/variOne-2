@@ -28,7 +28,7 @@ void OthersMenu::optionsMenu() {
 #endif
 #endif
 
-#ifndef LITE_VERSION
+#if !defined(LITE_VERSION) && !defined(DISABLE_IBUTTON_MENU)
         {"iButton",      setup_ibutton                },
 #endif
 
