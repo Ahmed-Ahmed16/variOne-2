@@ -43,7 +43,10 @@ public:
     using TFT_eSPI::getTextDatum;
     using TFT_eSPI::height;
     using TFT_eSPI::init;
-    using TFT_eSPI::initBus;
+    // TFT_eSPI::initBus is private, so it can't be re-exported with `using`.
+    // initBus() is currently unused across the codebase; provide a no-op to match
+    // the other display HALs (ardgfx/m5gfx) and keep USE_TFT_ESPI boards building.
+    void initBus() {}
     using TFT_eSPI::invertDisplay;
     using TFT_eSPI::print;
     using TFT_eSPI::printf;
