@@ -74,6 +74,7 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
         // Serial.println("\n\nAddress - " + bt_address + "Name-"+ bt_name +"\n\n");
         if (bt_title.isEmpty()) bt_title = bt_address;
         if (bt_name.isEmpty()) bt_name = "<no name>";
+        bt_title += " " + VariOneUI::rssiBars(advertisedDevice->getRSSI()); // Tier-1 chrome
         // If BT name is empty, set NONAME
         if (options.size() < 250)
             options.emplace_back(bt_title.c_str(), [=]() { ble_info(bt_name, bt_address, bt_signal); });
@@ -140,6 +141,7 @@ void ble_scan() {
         // Serial.println("\n\nAddress - " + bt_address + "Name-"+ bt_name +"\n\n");
         if (bt_title.isEmpty()) bt_title = bt_address;
         if (bt_name.isEmpty()) bt_name = "<no name>";
+        bt_title += " " + VariOneUI::rssiBars(advertisedDevice->getRSSI()); // Tier-1 chrome
         // If BT name is empty, set NONAME
         if (options.size() < 250)
             options.emplace_back(bt_title.c_str(), [=]() { ble_info(bt_name, bt_address, bt_signal); });

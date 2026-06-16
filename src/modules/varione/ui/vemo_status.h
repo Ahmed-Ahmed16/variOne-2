@@ -11,7 +11,22 @@ enum class VemoStatus {
     Error,
 };
 
+// One-shot status screen. Scan = small Vemo head + adjacent text; Success/Error =
+// full-screen Vemo art + bottom band. Degrades to the stock Bruce band when no
+// vemo_* image (or its cached .bin) is available.
 void showVemoStatus(const String &message, VemoStatus status = VemoStatus::Scan, bool waitKeyPress = false);
+
+// Phase 3 scan-loop helpers (anti-flicker). beginVemoScan() draws the persistent
+// Vemo head + footer hint ONCE; updateVemoScanText() repaints only the status text
+// region on later loop iterations (no fillScreen, no head redraw). Both fall back
+// to the stock text band when no head art is available. Call beginVemoScan() again
+// after a full-screen takeover (e.g. loopOptions) before resuming text updates.
+void beginVemoScan(const String &message, const String &footerHint = "");
+void updateVemoScanText(const String &message);
+
+// RSSI (dBm) -> friendly 0..4 bar glyph string, e.g. "[||..]". Used in scan result
+// rows instead of raw dBm for awareness demos (plan Tier-1 chrome).
+String rssiBars(int rssiDbm);
 
 } // namespace VariOneUI
 

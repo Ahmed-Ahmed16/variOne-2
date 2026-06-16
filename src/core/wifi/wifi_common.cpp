@@ -255,8 +255,10 @@ bool wifiConnectMenu(wifi_mode_t mode) {
                             default: encryptionTypeStr = "Unknown"; break;
                         }
 
-                        String optionText = encryptionPrefix + ssid + "(" + String(rssi) + "|" +
-                                            encryptionTypeStr + "|ch." + String(ch) + ")";
+                        // RSSI shown as friendly 0-4 bars (Tier-1 chrome) instead of raw dBm.
+                        String optionText = encryptionPrefix + ssid + " " +
+                                            VariOneUI::rssiBars(rssi) + " " + encryptionTypeStr +
+                                            " ch" + String(ch);
 
                         options.push_back({optionText.c_str(), [=]() {
                                                _wifiConnect(ssid, encryptionType);

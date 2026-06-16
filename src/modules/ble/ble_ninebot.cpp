@@ -131,9 +131,18 @@ void BLENinebot::redrawMainBorder() {
 void BLENinebot::loop() {
     std::vector<Option> deviceSelection;
 
+    // Draw the Vemo scan head ONCE; only the status text repaints each loop so the
+    // screen doesn't blink between scans (Phase 3 anti-flicker). The head is
+    // re-drawn after loopOptions() takes over the full screen.
+    bool needFullDraw = true;
+
     while (!check(EscPress)) {
-        redrawMainBorder();
-        VariOneUI::showVemoStatus("Scanning BLE");
+        if (needFullDraw) {
+            VariOneUI::beginVemoScan("Scanning BLE");
+            needFullDraw = false;
+        } else {
+            VariOneUI::updateVemoScanText("Scanning BLE");
+        }
 #ifdef NIMBLE_V2_PLUS
         NimBLEScanResults results = pBLEScan->getResults(SCAN_TIME * 1000, false);
 #else
@@ -142,11 +151,11 @@ void BLENinebot::loop() {
         if (check(EscPress)) return;
 
         if (results.getCount() == 0) {
-            displayTextLine("No Scooter found. Retry...");
+            VariOneUI::updateVemoScanText("No scooter");
             delay(UI_READ_DELAY);
             pBLEScan->clearResults();
             deviceSelection.clear();
-            continue;
+            continue; // head stays drawn -> no blink
         }
 
         deviceSelection.clear();
@@ -157,10 +166,12 @@ void BLENinebot::loop() {
             const NimBLEAdvertisedDevice *adv = results.getDevice(i);
             String name = adv->getName().length() ? String(adv->getName().c_str())
                                                   : String(adv->getAddress().toString().c_str());
+            name += " " + VariOneUI::rssiBars(adv->getRSSI());
 #else
             NimBLEAdvertisedDevice adv = results.getDevice(i);
             String name = adv.getName().length() ? String(adv.getName().c_str())
                                                  : String(adv.getAddress().toString().c_str());
+            name += " " + VariOneUI::rssiBars(adv.getRSSI());
 #endif
 
             deviceSelection.push_back(
@@ -219,6 +230,7 @@ void BLENinebot::loop() {
         if (returnToMenu) return;
 
         pBLEScan->clearResults();
+        needFullDraw = true; // loopOptions took the screen -> redraw head next cycle
     }
 }
 #endif
