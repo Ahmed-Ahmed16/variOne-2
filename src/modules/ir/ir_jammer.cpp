@@ -21,6 +21,7 @@
 #include "ir_utils.h"
 #include <globals.h>
 #include <interface.h>
+#include <vector>
 
 // Common IR remote control frequencies in Hz
 // Covers most consumer devices (30-56kHz range)
@@ -692,35 +693,109 @@ void cleanupJammer(IRsend &irsend) {
 }
 
 /**
- * Main entry point for IR jammer functionality
- * Initializes hardware, runs the main loop, and handles cleanup
+ * Main entry point for IR jammer functionality.
+ *
+ * The previous implementation bit-banged a sparse software square wave +
+ * irsend.sendRaw() bursts; an IR receiver's AGC filters that out, so it never
+ * actually blocked a remote. This version drives a CONTINUOUS hardware carrier
+ * via the ESP32 LEDC peripheral (Arduino core 3.x API), which saturates the
+ * receiver's gain control and is what actually jams:
+ *   - "Carrier 38kHz": steady 38 kHz, 50% duty carrier (most consumer remotes).
+ *   - "Sweep 30-56kHz": continuously sweeps the carrier across the common
+ *     receiver passbands (36/38/40/56 kHz) so any remote is covered.
+ * BACK stays cancellable (the carrier is hardware-generated, so the loop only
+ * steps the sweep frequency and polls EscPress every iteration).
  */
 void startIrJammer() {
 #ifdef USE_BOOST /// ENABLE 5V OUTPUT
     PPM.enableOTG();
 #endif
-    // Initialize IR transmitter with configured pin
-    IRsend irsend(bruceConfigPins.irTx);
+    const int irPin = bruceConfigPins.irTx;
 
-    // Initialize jammer state structure
-    JammerState state;
+    // Validate IR transmitter pin configuration (warns if unset).
+    checkIrTxPin();
 
-    // Set up hardware and state
-    setupJammer(irsend);
-    initJammerState(state);
-
-    // Main jammer loop - runs until ESC is pressed
-    while (!check(EscPress)) {
-        renderJammerUI(state);         // Update display
-        performJamming(state, irsend); // Execute jamming if active
-        handleJammerInput(state);      // Process user input
-
-        // Small delay to prevent system overload
-        delay(5);
+    // Mode select.
+    int mode = 0; // 0 = steady carrier, 1 = sweep, -1 = cancel
+    std::vector<Option> modeOpts = {
+        {"Carrier 38kHz",  [&]() { mode = 0; }},
+        {"Sweep 30-56kHz", [&]() { mode = 1; }},
+        {"Back",           [&]() { mode = -1; }},
+    };
+    loopOptions(modeOpts, MENU_TYPE_SUBMENU, "IR Jammer");
+    if (mode < 0) {
+#ifdef USE_BOOST
+        PPM.disableOTG();
+#endif
+        return;
     }
 
-    // Clean up when exiting
-    cleanupJammer(irsend);
+    // Continuous LEDC carrier setup. 8-bit resolution -> duty 0..255; 128 = 50%.
+    const uint8_t res = 8;
+    const uint32_t kCarrier = 38000;
+    const uint16_t kSweepMin = 30000, kSweepMax = 56000, kSweepStep = 1000;
+    uint32_t curFreq = (mode == 1) ? kSweepMin : kCarrier;
+
+    ledcAttach(irPin, curFreq, res);
+    ledcWrite(irPin, 128); // start the carrier
+
+    // Minimal blue/black UI.
+    drawMainBorder();
+    tft.setTextSize(FM);
+    tft.setTextColor(TFT_CYAN, bruceConfig.bgColor);
+    tft.setCursor(10, 35);
+    tft.print("IR Jammer");
+    tft.setTextSize(FP);
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    tft.setCursor(10, 60);
+    tft.print(mode == 1 ? "Mode: Sweep 30-56k" : "Mode: Carrier 38k");
+    tft.setTextColor(TFT_RED, bruceConfig.bgColor);
+    tft.setCursor(10, tftHeight - 20);
+    tft.print("[ESC] Exit");
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+
+    int dir = 1;
+    uint32_t lastUI = 0;
+
+    // Carrier runs in hardware; the loop only sweeps + polls BACK.
+    while (!check(EscPress)) {
+        if (mode == 1) {
+            curFreq += dir * kSweepStep;
+            if (curFreq >= kSweepMax) {
+                curFreq = kSweepMax;
+                dir = -1;
+            } else if (curFreq <= kSweepMin) {
+                curFreq = kSweepMin;
+                dir = 1;
+            }
+            ledcChangeFrequency(irPin, curFreq, res);
+            ledcWrite(irPin, 128); // re-assert duty after a frequency change
+
+            // Live frequency readout (throttled).
+            uint32_t now = millis();
+            if (now - lastUI > 120) {
+                lastUI = now;
+                tft.fillRect(10, 78, tftWidth - 20, 14, bruceConfig.bgColor);
+                tft.setCursor(10, 78);
+                tft.printf("Freq: %lu kHz   ", (unsigned long)(curFreq / 1000));
+            }
+            delay(5);
+        } else {
+            delay(20);
+        }
+    }
+
+    // Stop carrier and release the pin.
+    ledcWrite(irPin, 0);
+    ledcDetach(irPin);
+    pinMode(irPin, OUTPUT);
+    digitalWrite(irPin, LOW);
+
+#ifdef USE_BOOST /// DISABLE 5V OUTPUT
+    PPM.disableOTG();
+#endif
+    displayRedStripe("IR Jamming Stopped");
+    delay(800);
 }
 
 /**
