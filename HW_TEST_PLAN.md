@@ -150,3 +150,21 @@ to bring any group back.
 
 **Pass (all):** listed items hidden/renamed; kept features (esp. WiFi capture→crack and the
 RFID I2C reads) still function.
+
+---
+
+## Batch 7 — RF cleanup + all-band scanner (commit ce07635)
+
+1. **Hidden:** RF menu no longer shows **Bruteforce** or **Jammer Itmt**. Still present:
+   Scan/copy, Spectrum, RSSI Spectrum, SquareWave Spec, **Spectogram**, Keyfob Inspect,
+   **Jammer Full**, Config (+ Record RAW / Custom SubGhz).
+2. **Band Scanner (new):** RF → **Band Scanner** → it sweeps 300–348 / 387–464 /
+   779–928 MHz (~1.4 s per pass) and shows the current frequency plus the strongest
+   frequency + RSSI found so far, updating live.
+   - With a known transmitter active (e.g. a 433 MHz key fob held down), the reported
+     "strongest" frequency should land near that transmitter's band.
+   - **BACK** exits the sweep promptly.
+   - With no CC1101 detected it shows an error and returns (shouldn't happen on VariOne).
+
+**Pass:** Bruteforce/Jammer Itmt gone; Band Scanner sweeps all three bands, points at an
+active transmitter, BACK cancels.
