@@ -67,48 +67,107 @@ void repaintScanText(const String &text) {
     tft.setTextDatum(TL_DATUM);
 }
 
-// Full scan screen: small Vemo head + adjacent text + footer hint (plan Decision
-// 4/7). Returns false if the head image is unavailable or its decode fails, so
-// the caller can fall back to the stock Bruce text band.
-bool drawScanFull(const String &text, const String &footer) {
-    if (!bruceConfig.theme.vemo_head || bruceConfig.theme.paths.vemo_head == "") return false;
+// ---- Vemo vector mascot ---------------------------------------------------
+// Vemo is drawn from primitives (no PNG), so every expression is crisp at any
+// size and identical across scan / idle / success / error. This replaces the
+// old theme PNG heads (which scaled up blurry). Brand palette is fixed to the
+// mascot identity: white body, dark-navy bandit mask + ears, theme-accent eyes
+// + the cyan "V" muzzle. Only the accent tracks the active theme (priColor).
+enum class Mood { Scan, Idle, Sleep, Success, Error };
 
-    tft.fillScreen(bruceConfig.bgColor);
-    const int headX = 8;
-    const int headY = (tftHeight - kHeadSize) / 2;
-    if (!drawImg(
-            *bruceConfig.themeFS(),
-            bruceConfig.getThemeItemImg(bruceConfig.theme.paths.vemo_head),
-            headX,
-            headY,
-            false,
-            0,
-            false
-        )) {
-        return false; // missing/corrupt .bin -> fall back to stock band
+constexpr uint16_t kVemoNavy = 0x192A; // dark navy (mask + ears + outline)
+
+void drawVemoFace(int cx, int cy, int s, Mood mood) {
+    const uint16_t white = TFT_WHITE;
+    const uint16_t cyan = bruceConfig.priColor; // theme accent
+    const uint16_t bg = bruceConfig.bgColor;
+
+    const int headW = s;
+    const int headH = (s * 92) / 100;
+    const int hx = cx - headW / 2;
+    const int hy = cy - headH / 2;
+    const int rad = s / 4;
+    const int earR = (s * 17) / 100;
+    const int eyeDX = (s * 21) / 100;
+    const int eyeR = (s * 9) / 100;
+    const int eyeY = cy - s / 20;
+    int eyes[2] = {cx - eyeDX, cx + eyeDX};
+
+    // Antenna (active moods only) — drawn first so the head overlaps its base.
+    if (mood == Mood::Scan || mood == Mood::Idle) {
+        int ay = hy - s / 6;
+        tft.drawWideLine(cx, hy, cx, ay, 2, kVemoNavy, bg);
+        tft.fillCircle(cx, ay, max(2, s / 18), cyan);
     }
 
+    // Ears: navy disc with a white inner disc, behind the head's top corners.
+    for (int i = -1; i <= 1; i += 2) {
+        int ex = cx + i * (s * 32) / 100;
+        int ey = hy + earR / 3;
+        tft.fillCircle(ex, ey, earR, kVemoNavy);
+        tft.fillCircle(ex, ey, (earR * 5) / 10, white);
+    }
+
+    // Head: white rounded square with a 2 px navy outline.
+    tft.fillRoundRect(hx, hy, headW, headH, rad, white);
+    tft.drawRoundRect(hx, hy, headW, headH, rad, kVemoNavy);
+    tft.drawRoundRect(hx + 1, hy + 1, headW - 2, headH - 2, rad - 1, kVemoNavy);
+
+    // Bandit mask: navy rounded band across the eyes.
+    int mW = (s * 84) / 100, mH = (s * 34) / 100;
+    int mX = cx - mW / 2, mY = eyeY - mH / 2;
+    tft.fillRoundRect(mX, mY, mW, mH, mH / 2, kVemoNavy);
+
+    for (int i = 0; i < 2; i++) {
+        int ex = eyes[i];
+        if (mood == Mood::Sleep) {
+            // Closed, content eyes: a shallow downward "v" (lashes) per eye.
+            tft.drawWideLine(ex - eyeR, eyeY - eyeR / 3, ex, eyeY + eyeR / 2, 2, cyan, kVemoNavy);
+            tft.drawWideLine(ex, eyeY + eyeR / 2, ex + eyeR, eyeY - eyeR / 3, 2, cyan, kVemoNavy);
+        } else if (mood == Mood::Error) {
+            // X eyes.
+            tft.drawWideLine(ex - eyeR, eyeY - eyeR, ex + eyeR, eyeY + eyeR, 2, cyan, kVemoNavy);
+            tft.drawWideLine(ex - eyeR, eyeY + eyeR, ex + eyeR, eyeY - eyeR, 2, cyan, kVemoNavy);
+        } else {
+            // Open eyes (scan / idle / success): cyan disc + white glint.
+            tft.fillCircle(ex, eyeY, eyeR, cyan);
+            tft.fillCircle(ex - eyeR / 3, eyeY - eyeR / 3, max(1, eyeR / 3), white);
+        }
+    }
+
+    // Brand "V" muzzle in cyan, below the mask.
+    int vy = mY + mH + s / 12;
+    int vw = (s * 12) / 100;
+    tft.drawWideLine(cx - vw, vy, cx, vy + vw, 2, cyan, white);
+    tft.drawWideLine(cx, vy + vw, cx + vw, vy, 2, cyan, white);
+
+    // Success sparkles flanking the head.
+    if (mood == Mood::Success) {
+        for (int i = -1; i <= 1; i += 2) {
+            int sx = cx + i * (s * 48) / 100;
+            int sy = hy + s / 8;
+            tft.drawWideLine(sx - 3, sy, sx + 3, sy, 2, cyan, bg);
+            tft.drawWideLine(sx, sy - 3, sx, sy + 3, 2, cyan, bg);
+        }
+    }
+}
+
+// Scan screen: small vector Vemo head (left) + adjacent text + footer hint.
+// Always succeeds (no asset dependency) so it never falls back to the stock band.
+bool drawScanFull(const String &text, const String &footer) {
+    tft.fillScreen(bruceConfig.bgColor);
+    drawVemoFace(8 + kHeadSize / 2, tftHeight / 2, kHeadSize, Mood::Scan);
     repaintScanText(text);
     drawFooterHint(footer);
     return true;
 }
 
-// Full-screen Vemo art for success/error. Returns false if unavailable / decode
-// fails so the caller can fall back to the stock band.
+// Full-screen vector Vemo for success/error (large, centered; caller adds band).
 bool drawFullVemo(VariOneUI::VemoStatus status) {
-    bool available;
-    String path;
-    if (status == VariOneUI::VemoStatus::Success) {
-        available = bruceConfig.theme.vemo_success;
-        path = bruceConfig.theme.paths.vemo_success;
-    } else {
-        available = bruceConfig.theme.vemo_error;
-        path = bruceConfig.theme.paths.vemo_error;
-    }
-    if (!available || path == "") return false;
-
     tft.fillScreen(bruceConfig.bgColor);
-    return drawImg(*bruceConfig.themeFS(), bruceConfig.getThemeItemImg(path), 0, 0, true, 0, false);
+    Mood m = (status == VariOneUI::VemoStatus::Success) ? Mood::Success : Mood::Error;
+    drawVemoFace(tftWidth / 2, 50, 84, m);
+    return true;
 }
 
 #endif // HAS_SCREEN
@@ -155,31 +214,18 @@ void drawVemoSleep() {
 #else
     tft.fillScreen(bruceConfig.bgColor);
 
-    bool drewArt = false;
-    if (bruceConfig.theme.vemo_sleeping && bruceConfig.theme.paths.vemo_sleeping != "") {
-        const int headW = 80; // art is 80x80; centered
-        const int headX = (tftWidth - headW) / 2;
-        const int headY = (tftHeight - headW) / 2 - 6;
-        drewArt = drawImg(
-            *bruceConfig.themeFS(),
-            bruceConfig.getThemeItemImg(bruceConfig.theme.paths.vemo_sleeping),
-            headX,
-            headY,
-            false,
-            0,
-            false
-        );
-    }
+    const int s = 76;
+    const int cx = tftWidth / 2;
+    const int cy = tftHeight / 2 - 2;
+    drawVemoFace(cx, cy, s, Mood::Sleep);
 
-    // "Zzz" cue (also the whole screen when no art is available).
-    tft.setTextColor(bruceConfig.secColor, bruceConfig.bgColor);
+    // "Zzz" rising from the top-right of the head (small -> large).
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    tft.setTextDatum(ML_DATUM);
+    tft.setTextSize(FP);
+    tft.drawString("z", cx + s / 2 - 6, cy - s / 3);
     tft.setTextSize(FM);
-    tft.setTextDatum(MC_DATUM);
-    if (drewArt) {
-        tft.drawString("Z z z", tftWidth / 2, tftHeight - 18);
-    } else {
-        tft.drawString("Zzz...", tftWidth / 2, tftHeight / 2);
-    }
+    tft.drawString("Z", cx + s / 2 + 4, cy - s / 2 - 2);
     tft.setTextDatum(TL_DATUM);
 #endif
 }

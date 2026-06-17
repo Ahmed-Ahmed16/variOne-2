@@ -1,11 +1,4 @@
 {
-  "wifi": "wifi.png",
-  "rfid": "rfid.png",
-  "files": "files.png",
-  "interpreter": "interpreter.png",
-  "clock": "clock.png",
-  "others": "others.png",
-  "connect": "connect.png",
   "boot_img": "boot.png",
   "vemo_scan": "vemo_scan.png",
   "vemo_head": "vemo_head.png",

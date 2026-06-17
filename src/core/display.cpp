@@ -10,7 +10,7 @@
 #if defined(VARIONE_VEMO_UI)
 #include "modules/varione/ui/vemo_status.h"
 #ifndef VARIONE_VEMO_IDLE_MS
-#define VARIONE_VEMO_IDLE_MS 20000 // idle ms on the main menu before Vemo sleeps
+#define VARIONE_VEMO_IDLE_MS 30000 // idle ms on the main menu before Vemo sleeps
 #endif
 #endif
 
