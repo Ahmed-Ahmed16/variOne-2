@@ -110,8 +110,15 @@ void updateTimeStr(struct tm timeInfo) {
 }
 
 void showDeviceInfo() {
-    ScrollableTextArea area = ScrollableTextArea("DEVICE INFO");
+    ScrollableTextArea area = ScrollableTextArea("ABOUT VariOne");
 
+#ifdef VARIONE_VERSION
+    area.addLine("VariOne v" + String(VARIONE_VERSION));
+#else
+    area.addLine("VariOne v1.0");
+#endif
+    area.addLine("Graduation Project - CIC New Cairo");
+    area.addLine("Supervised by Dr. Ahmed Gaber");
     area.addLine("Bruce Version: " + String(BRUCE_VERSION));
     area.addLine("EEPROM size: " + String(EEPROMSIZE));
     area.addLine("");

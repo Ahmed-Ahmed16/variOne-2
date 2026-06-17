@@ -23,7 +23,7 @@
 #include <globals.h>
 #include <nvs_flash.h>
 
-#define WIFI_ATK_NAME "BruceAttack"
+#define WIFI_ATK_NAME "VariAttack"
 extern bool showHiddenNetworks;
 
 // Broadcast MAC for flood attacks
@@ -233,7 +233,11 @@ bool wifi_atk_setWifi() {
 
     if (WiFi.getMode() != WIFI_MODE_APSTA) {
         if (!WiFi.mode(WIFI_MODE_APSTA)) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("WiFi start failed", VariOneUI::VemoStatus::Error, true);
+#else
             displayError("Failed starting WIFI", true);
+#endif
             return false;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -242,7 +246,11 @@ bool wifi_atk_setWifi() {
     if (WiFi.softAPSSID() != bruceConfig.wifiAp.ssid && WiFi.softAPSSID() != WIFI_ATK_NAME) {
         uint8_t randomChannel = random(1, 12);
         if (!WiFi.softAP(WIFI_ATK_NAME, emptyString, randomChannel, 1, 4, false)) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("AP start failed", VariOneUI::VemoStatus::Error, true);
+#else
             displayError("Failed starting  AP Attacker", true);
+#endif
             return false;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -263,7 +271,11 @@ bool wifi_atk_unsetWifi() {
 
     if (WiFi.softAPSSID() == WIFI_ATK_NAME) {
         if (!WiFi.softAPdisconnect()) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("AP stop failed", VariOneUI::VemoStatus::Error, true);
+#else
             displayError("Failed Stopping AP Attacker", true);
+#endif
             return false;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -303,7 +315,11 @@ void wifi_atk_menu() {
     }
     if (scanAtks) {
         int nets;
+#if defined(VARIONE_VEMO_UI)
         VariOneUI::showVemoStatus("Scanning WiFi");
+#else
+        displayTextLine("Scanning..");
+#endif
         // include hidden networks in the scan depending on toggle
         nets = WiFi.scanNetworks(false, showHiddenNetworks);
         ap_records.clear();
@@ -352,8 +368,13 @@ void wifi_atk_menu() {
                 displaySSID = "<Hidden SSID> " + WiFi.BSSIDstr(i);
             }
 
+#if defined(VARIONE_VEMO_UI)
+            String optionText = encryptionPrefix + displaySSID + " " + VariOneUI::rssiBars(rssi) + " " +
+                                encryptionTypeStr + " ch" + String(ch);
+#else
             String optionText = encryptionPrefix + displaySSID + " (" + String(rssi) + "|" +
                                 encryptionTypeStr + "|ch." + String(ch) + ")";
+#endif
 
             options.push_back({optionText.c_str(), [=]() {
                                    ap_record = ap_records[i];
@@ -391,7 +412,11 @@ void deauthFloodAttack() {
     uint32_t debriefTotalFrames = 0;
     int nets;
 ScanNets:
+#if defined(VARIONE_VEMO_UI)
     VariOneUI::showVemoStatus("Scanning WiFi");
+#else
+    displayTextLine("Scanning..");
+#endif
     // include hidden networks in the scan depending on toggle
     nets = WiFi.scanNetworks(false, showHiddenNetworks);
     ap_records.clear();
@@ -607,14 +632,22 @@ void capture_handshake(String tssid, String mac, uint8_t channel) {
     delay(100);
 
     if (!WiFi.mode(WIFI_MODE_STA)) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("WiFi start failed", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("Failed starting WIFI", true);
+#endif
         return;
     }
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Initialize sniffer backend
     if (!sniffer_prepare_storage(fs, !isLittleFS)) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("Sniffer queue error", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("Sniffer queue error", true);
+#endif
         return;
     }
 
@@ -1050,7 +1083,7 @@ void beaconAttack() {
 #if !defined(LITE_VERSION)
     // Get user input for single SSID mode
     if (BeaconMode == 4) {
-        singleSSID = keyboard("BruceBeacon", 26, "Base SSID:");
+        singleSSID = keyboard("VariBeacon", 26, "Base SSID:");
         if (singleSSID.length() == 0) { return; }
     }
 #endif

@@ -26,7 +26,7 @@
 
 StartupApp::StartupApp() {
 #ifndef LITE_VERSION
-    _startupApps["Brucegotchi"] = []() { brucegotchi_start(); };
+    _startupApps["VariGotchi"] = []() { brucegotchi_start(); };
     _startupApps["Sniffer"] = []() { sniffer_setup(); };
     _startupApps["GPS Tracker"] = []() { GPSTracker(); };
     _startupApps["PN532 BLE"] = []() { Pn532ble(); };

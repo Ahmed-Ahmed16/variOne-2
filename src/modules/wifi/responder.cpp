@@ -568,11 +568,11 @@ void responder() {
     // M5Cardputer.Display.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     if (!wifiConnected) wifiConnectMenu();
 
-    netbiosname_str = keyboard("Bruce", 20);
+    netbiosname_str = keyboard("VariOne", 20);
     netbiosName = stringTochar(netbiosname_str);
-    netbiosdomain_str = keyboard("BRUCEGROUP", 20);
+    netbiosdomain_str = keyboard("VARIGROUP", 20);
     netbiosDomain = stringTochar(netbiosdomain_str);
-    dnsdomain_str = keyboard("Bruce.Local", 20);
+    dnsdomain_str = keyboard("VariOne.Local", 20);
     dnsDomain = stringTochar(dnsdomain_str);
 
     hashCount = 0;

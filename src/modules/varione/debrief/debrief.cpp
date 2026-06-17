@@ -227,7 +227,7 @@ static void serveReportLoop() {
     apIP = WiFi.softAPIP();
 
     String apSsid = bruceConfig.wifiAp.ssid;
-    if (apSsid.isEmpty()) apSsid = "BruceAP";
+    if (apSsid.isEmpty()) apSsid = "VariOne";
     Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
 
     s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal

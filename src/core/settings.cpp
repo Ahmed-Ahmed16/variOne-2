@@ -1250,11 +1250,11 @@ void setGpsBaudrateMenu() {
 **  Handles Menu to set the WiFi AP SSID
 **********************************************************************/
 void setWifiApSsidMenu() {
-    const bool isDefault = bruceConfig.wifiAp.ssid == "BruceNet";
+    const bool isDefault = bruceConfig.wifiAp.ssid == "VariOne";
 
     options = {
-        {"Default (BruceNet)",
-         [=]() { bruceConfig.setWifiApCreds("BruceNet", bruceConfig.wifiAp.pwd); },
+        {"Default (VariOne)",
+         [=]() { bruceConfig.setWifiApCreds("VariOne", bruceConfig.wifiAp.pwd); },
          isDefault                                                                            },
         {"Custom",
          [=]() {

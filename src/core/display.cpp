@@ -824,7 +824,11 @@ void drawStatusBar() {
         tft.print(timeStr);
     } else {
         setTftDisplay(12, 12, bruceConfig.priColor, 1, bruceConfig.bgColor);
+#ifdef VARIONE_VERSION
+        tft.print("VariOne " + String(VARIONE_VERSION));
+#else
         tft.print("BRUCE " + String(BRUCE_VERSION));
+#endif
     }
 }
 

@@ -104,8 +104,13 @@ uint32_t freeCallback(cmd *c) {
 }
 
 uint32_t infoCallback(cmd *c) {
+#ifdef VARIONE_VERSION
+    serialDevice->print("VariOne v");
+    serialDevice->println(VARIONE_VERSION);
+#else
     serialDevice->print("Bruce v");
     serialDevice->println(BRUCE_VERSION);
+#endif
     serialDevice->println(GIT_COMMIT_HASH);
     serialDevice->print("SDK: ");              
     serialDevice->println(ESP.getSdkVersion());
@@ -132,8 +137,13 @@ uint32_t infoCallback(cmd *c) {
 }
 
 uint32_t helpCallback(cmd *c) {
+#ifdef VARIONE_VERSION
+    serialDevice->print("VariOne v");
+    serialDevice->print(VARIONE_VERSION);
+#else
     serialDevice->print("Bruce v");
     serialDevice->print(BRUCE_VERSION);
+#endif
     serialDevice->print("\nThese shell commands are defined internally.\n");
 
     serialDevice->println("\nWiFi Commands:");

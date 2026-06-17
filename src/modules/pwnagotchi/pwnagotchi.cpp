@@ -57,7 +57,7 @@ void brucegotchi_setup() {
     initPwngrid();
     initUi();
     state = STATE_INIT;
-    Serial.println("Brucegotchi Initialized");
+    Serial.println("VariGotchi Initialized");
 }
 
 void brucegotchi_update() {

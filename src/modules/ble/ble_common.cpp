@@ -74,7 +74,9 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
         // Serial.println("\n\nAddress - " + bt_address + "Name-"+ bt_name +"\n\n");
         if (bt_title.isEmpty()) bt_title = bt_address;
         if (bt_name.isEmpty()) bt_name = "<no name>";
+#if defined(VARIONE_VEMO_UI)
         bt_title += " " + VariOneUI::rssiBars(advertisedDevice->getRSSI()); // Tier-1 chrome
+#endif
         // If BT name is empty, set NONAME
         if (options.size() < 250)
             options.emplace_back(bt_title.c_str(), [=]() { ble_info(bt_name, bt_address, bt_signal); });
@@ -121,7 +123,11 @@ void ble_scan_setup() {
 }
 
 void ble_scan() {
+#if defined(VARIONE_VEMO_UI)
     VariOneUI::showVemoStatus("Scanning BLE");
+#else
+    displayTextLine("Scanning..");
+#endif
 
     options = {};
     ble_scan_setup();
@@ -141,7 +147,9 @@ void ble_scan() {
         // Serial.println("\n\nAddress - " + bt_address + "Name-"+ bt_name +"\n\n");
         if (bt_title.isEmpty()) bt_title = bt_address;
         if (bt_name.isEmpty()) bt_name = "<no name>";
+#if defined(VARIONE_VEMO_UI)
         bt_title += " " + VariOneUI::rssiBars(advertisedDevice->getRSSI()); // Tier-1 chrome
+#endif
         // If BT name is empty, set NONAME
         if (options.size() < 250)
             options.emplace_back(bt_title.c_str(), [=]() { ble_info(bt_name, bt_address, bt_signal); });
@@ -165,7 +173,7 @@ void ble_scan() {
 
 bool initBLEServer() {
     uint64_t chipid = ESP.getEfuseMac();
-    String blename = "Bruce-" + String((uint8_t)(chipid >> 32), HEX);
+    String blename = "VariOne-" + String((uint8_t)(chipid >> 32), HEX);
 
     BLEDevice::init(blename.c_str());
     // BLEDevice::setPower(ESP_PWR_LVL_N12);
@@ -194,7 +202,7 @@ void disPlayBLESend() {
     pServer->getAdvertising()->start();
 
     uint64_t chipid = ESP.getEfuseMac();
-    String blename = "Bruce-" + String((uint8_t)(chipid >> 32), HEX);
+    String blename = "VariOne-" + String((uint8_t)(chipid >> 32), HEX);
 
     BLEConnected = true;
 

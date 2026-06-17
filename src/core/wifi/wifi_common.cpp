@@ -100,7 +100,11 @@ bool _connectToWifiNetwork(const String &ssid, const String &pwd) {
 #endif
 
         if (i > 20) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("WiFi Offline", VariOneUI::VemoStatus::Error);
+#else
             displayError("Wifi Offline");
+#endif
             vTaskDelay(500 / portTICK_RATE_MS);
             break;
         }
@@ -109,13 +113,17 @@ bool _connectToWifiNetwork(const String &ssid, const String &pwd) {
         i++;
     }
 
-    return WiFi.status() == WL_CONNECTED;
+    bool connected = WiFi.status() == WL_CONNECTED;
+#if defined(VARIONE_VEMO_UI)
+    if (connected) VariOneUI::showVemoStatus("WiFi Connected", VariOneUI::VemoStatus::Success);
+#endif
+    return connected;
 }
 
 bool _setupAP() {
     // Guard the SSID: an empty SSID makes softAP() fail to broadcast.
     String apSsid = bruceConfig.wifiAp.ssid;
-    if (apSsid.isEmpty()) apSsid = "BruceAP";
+    if (apSsid.isEmpty()) apSsid = "VariOne";
 
     // Guard the password: WPA2 requires >= 8 chars. A 1-7 char password makes
     // softAP() silently return false and the AP never appears. Fall back to an
@@ -233,7 +241,11 @@ bool wifiConnectMenu(wifi_mode_t mode) {
 
             bool refresh_scan = false;
             do {
+#if defined(VARIONE_VEMO_UI)
                 VariOneUI::showVemoStatus("Scanning WiFi");
+#else
+                displayTextLine("Scanning..");
+#endif
                 nets = WiFi.scanNetworks();
                 options = {};
                 for (int i = 0; i < nets; i++) {
@@ -255,10 +267,14 @@ bool wifiConnectMenu(wifi_mode_t mode) {
                             default: encryptionTypeStr = "Unknown"; break;
                         }
 
-                        // RSSI shown as friendly 0-4 bars (Tier-1 chrome) instead of raw dBm.
+#if defined(VARIONE_VEMO_UI)
                         String optionText = encryptionPrefix + ssid + " " +
                                             VariOneUI::rssiBars(rssi) + " " + encryptionTypeStr +
                                             " ch" + String(ch);
+#else
+                        String optionText = encryptionPrefix + ssid + "(" + String(rssi) + "|" +
+                                            encryptionTypeStr + "|ch." + String(ch) + ")";
+#endif
 
                         options.push_back({optionText.c_str(), [=]() {
                                                _wifiConnect(ssid, encryptionType);
@@ -354,7 +370,11 @@ bool wifiConnecttoKnownNet(void) {
     bool result = false;
     int nets;
     // WiFi.mode(WIFI_MODE_STA);
+#if defined(VARIONE_VEMO_UI)
     VariOneUI::showVemoStatus("Scanning WiFi");
+#else
+    displayTextLine("Scanning Networks..");
+#endif
     WiFi.disconnect(true, true);
     vTaskDelay(10 / portTICK_PERIOD_MS);
     nets = WiFi.scanNetworks();

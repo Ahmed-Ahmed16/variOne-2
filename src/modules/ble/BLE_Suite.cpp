@@ -187,7 +187,7 @@ void BLEAttackManager::prepareForConnection() {
         delay(300);
     }
 
-    BLEStateManager::initBLE("Bruce-Attack", ESP_PWR_LVL_P9);
+    BLEStateManager::initBLE("Vari-Attack", ESP_PWR_LVL_P9);
     NimBLEDevice::setMTU(250);
     NimBLEDevice::setSecurityAuth(true, true, true);
     delay(300);
@@ -315,7 +315,7 @@ NimBLEClient *attemptConnectionWithStrategies(NimBLEAddress target, String &conn
     showAttackProgress("Trying exploit-based connection...", TFT_ORANGE);
     BLEStateManager::deinitBLE(true);
     delay(800);
-    std::string exploitName = "Bruce-Exploit";
+    std::string exploitName = "Vari-Exploit";
     NimBLEDevice::init(exploitName);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEDevice::setSecurityAuth(false, false, false);
@@ -2198,7 +2198,7 @@ MultiConnectionAttack::~MultiConnectionAttack() { cleanup(); }
 bool MultiConnectionAttack::connectionFloodSingle(NimBLEAddress target, int timeout) {
     BLEStateManager::deinitBLE(true);
     delay(100);
-    std::string floodName = "Bruce-Flooder";
+    std::string floodName = "Vari-Flooder";
     NimBLEDevice::init(floodName);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
@@ -2247,7 +2247,7 @@ bool MultiConnectionAttack::connectionFlood(std::vector<NimBLEAddress> targets, 
 bool MultiConnectionAttack::advertisingSpamSingle(NimBLEAddress target) {
     BLEStateManager::deinitBLE(true);
     delay(300);
-    std::string spamName = "Bruce-Spammer";
+    std::string spamName = "Vari-Spammer";
     NimBLEDevice::init(spamName);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
@@ -2256,7 +2256,7 @@ bool MultiConnectionAttack::advertisingSpamSingle(NimBLEAddress target) {
 
     uint8_t bruceData[] = {0xFF, 0xFF, 'B', 'R', 'U', 'C', 'E'};
     pAdvertising->setManufacturerData(bruceData, sizeof(bruceData));
-    pAdvertising->setName("Bruce-Spammer");
+    pAdvertising->setName("Vari-Spammer");
     pAdvertising->addServiceUUID(NimBLEUUID("12345678-1234-5678-1234-567812345678"));
 
     pAdvertising->start(0);
@@ -2660,7 +2660,7 @@ bool PairingAttackServiceClass::bruteForcePIN(NimBLEAddress target) {
 
         BLEStateManager::deinitBLE(true);
         delay(300);
-        std::string pinName = "Bruce-PINBrute";
+        std::string pinName = "Vari-PINBrute";
         NimBLEDevice::init(pinName);
         NimBLEDevice::setSecurityAuth(true, true, true);
         NimBLEDevice::setPower(ESP_PWR_LVL_P9);
@@ -2717,7 +2717,7 @@ bool DoSAttackServiceClass::connectionFlood(NimBLEAddress target) {
 
         BLEStateManager::deinitBLE(true);
         delay(100);
-        std::string floodName = "Bruce-Flooder";
+        std::string floodName = "Vari-Flooder";
         NimBLEDevice::init(floodName);
         NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
@@ -2747,7 +2747,7 @@ bool DoSAttackServiceClass::advertisingSpam(NimBLEAddress target) {
 
     BLEStateManager::deinitBLE(true);
     delay(300);
-    std::string spamName = "Bruce-Spammer";
+    std::string spamName = "Vari-Spammer";
     NimBLEDevice::init(spamName);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
@@ -2759,7 +2759,7 @@ bool DoSAttackServiceClass::advertisingSpam(NimBLEAddress target) {
 
     uint8_t spamData[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     pAdvertising->setManufacturerData(spamData, sizeof(spamData));
-    pAdvertising->setName("Bruce-Spammer");
+    pAdvertising->setName("Vari-Spammer");
     pAdvertising->addServiceUUID(NimBLEUUID("12345678-1234-5678-1234-567812345678"));
 
     const int SPAM_DURATION = 10000;
@@ -3616,7 +3616,7 @@ String selectTargetFromScan(const char *title) {
         delay(500);
     }
 
-    NimBLEDevice::init("Bruce-Scanner");
+    NimBLEDevice::init("Vari-Scanner");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
     NimBLEScan *pBLEScan = NimBLEDevice::getScan();

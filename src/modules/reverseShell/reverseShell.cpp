@@ -34,12 +34,12 @@ void ReverseShell() {
         return;
     }
 
-    if (!WiFi.softAP("BruceShell", "", 1)) {
+    if (!WiFi.softAP("VariShell", "", 1)) {
         tft.println("Failed to start AP");
         return;
     }
 
-    tft.println("Wi-Fi AP Started: BruceShell");
+    tft.println("Wi-Fi AP Started: VariShell");
 
     delay(3000);
 
@@ -109,7 +109,7 @@ void ReverseShell() {
             tcpClient = tcpServer.accept();
             if (tcpClient) {
                 tft.println("Client connected.");
-                tcpClient.println("~Welcome to BruceShell.");
+                tcpClient.println("~Welcome to VariShell.");
                 tcpClient.println("~Developed by Fourier (github.com/9dl)");
                 shellConnected = true;
             }
