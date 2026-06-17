@@ -19,12 +19,16 @@ void RFIDMenu::optionsMenu() {
         {"Read tag",    [=]() { TagOMatic(); }                          },
 #ifndef LITE_VERSION
         {"Read EMV",    [=]() { EMVReader(); }                          },
+#if !defined(VARIONE_HIDE_RFID_EXTRAS) // 125kHz needs HW the PN532 lacks
         {"Read 125kHz", [=]() { RFID125(); }                            },
+#endif
 #endif
         {"Scan tags",   [=]() { TagOMatic(TagOMatic::SCAN_MODE); }      },
         {"Load file",   [=]() { TagOMatic(TagOMatic::LOAD_MODE); }      },
         {"Erase data",  [=]() { TagOMatic(TagOMatic::ERASE_MODE); }     },
+#if !defined(VARIONE_HIDE_RFID_EXTRAS)
         {"Write NDEF",  [=]() { TagOMatic(TagOMatic::WRITE_NDEF_MODE); }},
+#endif
 #endif
 #if !defined(VARIONE_HIDE_RFID_EXTRAS)
 #ifndef LITE_VERSION
@@ -43,10 +47,12 @@ void RFIDMenu::optionsMenu() {
 
 #if !defined(REMOVE_RFID_HW_INTERFACE)
 #ifndef LITE_VERSION
+#if !defined(VARIONE_HIDE_RFID_EXTRAS)
     if (bruceConfigPins.rfidModule == PN532_I2C_MODULE) {
         // Added SRIX Menu only if PN is set to i2c mode
         options.insert(options.begin() + 3, {"SRIX Tool", [=]() { PN532_SRIX(); }});
     }
+#endif
 #endif
 #endif
 

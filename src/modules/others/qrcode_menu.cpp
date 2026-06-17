@@ -70,7 +70,6 @@ void qrcode_menu() {
         options.push_back({entry.menuName.c_str(), lambdaHelper(qrcode_display, entry.content)});
     }
 
-    options.push_back({"PIX", pix_qrcode});
     options.push_back({"Custom", custom_qrcode_menu});
     addOptionToMainMenu();
 

@@ -43,7 +43,9 @@ void BleMenu::optionsMenu() {
     options.push_back({"BLE Popup Spam", [=]() { spamMenu(); }});
 
 #if !defined(LITE_VERSION)
+#if !defined(VARIONE_HIDE_BLE_EXTRAS)
     options.push_back({"BLE Attack Suite", [=]() { BleSuiteMenu(); }});
+#endif
 #if !defined(VARIONE_HIDE_NINEBOT)
     options.push_back({"Ninebot", [=]() { BLENinebot(); }});
 #endif

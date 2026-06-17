@@ -36,8 +36,10 @@ void RFMenu::optionsMenu() {
 #if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Jammer Itmt",     [=]() { RFJammer(false); }},
 #endif
-#endif
+#if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Jammer Full",     [=]() { RFJammer(true); } },
+#endif
+#endif
         {"Config",          [this]() { configMenu(); }},
     };
     addOptionToMainMenu();
