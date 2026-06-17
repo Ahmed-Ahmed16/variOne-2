@@ -5,6 +5,7 @@
 #include "modules/rf/record.h"
 #include "modules/rf/rf_bruteforce.h"
 #include "modules/rf/rf_jammer.h"
+#include "modules/rf/rf_band_scanner.h"
 #include "modules/rf/rf_listen.h"
 #include "modules/rf/rf_scan.h"
 #include "modules/rf/rf_send.h"
@@ -20,6 +21,7 @@ void RFMenu::optionsMenu() {
         {"Custom SubGhz",   sendCustomRF              },
 #endif
         {"Spectrum",        rf_spectrum               },
+        {"Band Scanner",    rf_band_scanner           }, // VariOne: all-band sweep
 #if !defined(LITE_VERSION)
         {"RSSI Spectrum",   rf_CC1101_rssi            }, // @Pirata
         {"SquareWave Spec", rf_SquareWave             }, // @Pirata
@@ -27,9 +29,13 @@ void RFMenu::optionsMenu() {
 #if defined(BUZZ_PIN) or defined(HAS_NS4168_SPKR) and defined(RF_LISTEN_H)
         {"Listen",          rf_listen                 }, // dev_eclipse
 #endif
+#if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Bruteforce",      rf_bruteforce             }, // dev_eclipse
+#endif
         {"Keyfob Inspect",  keyfob_inspect            }, // VariOne: capture+classify+explain
+#if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Jammer Itmt",     [=]() { RFJammer(false); }},
+#endif
 #endif
         {"Jammer Full",     [=]() { RFJammer(true); } },
         {"Config",          [this]() { configMenu(); }},
