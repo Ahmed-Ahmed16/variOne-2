@@ -72,16 +72,16 @@ static NrfJamConfig jamConfigs[NRF_JAM_MODE_COUNT] = {
 
 // ── Mode information table ──────────────────────────────────────
 static const NrfJamModeInfo MODE_INFO[NRF_JAM_MODE_COUNT] = {
-    {"Full Spectrum",   "Full Spec" },
-    {"WiFi 2.4GHz",     "WiFi 2.4"  },
-    {"BLE Data",        "BLE Data"  },
-    {"BLE Advertising", "BLE Adv"   },
-    {"BT Classic",      "BT Classic"},
-    {"USB Dongles",     "USB Dongle"},
-    {"Video/FPV",       "Video FPV" },
-    {"RC Controllers",  "RC Ctrl"   },
-    {"Zigbee",          "Zigbee"    },
-    {"Drone FHSS",      "Drone"     },
+    {"Full Spectrum",       "Full Spec" },
+    {"WiFi 2.4 (Degrade)",  "WiFi Degr" },
+    {"BLE Link Kill",       "BLE Link"  },
+    {"BLE Discovery Kill",  "BLE Disc"  },
+    {"Bluetooth Kill",      "BT Kill"   },
+    {"Wireless Mouse/KB Kill", "MouseKB"},
+    {"Video/FPV",           "Video FPV" },
+    {"RC Controllers",      "RC Ctrl"   },
+    {"Zigbee",              "Zigbee"    },
+    {"Drone FHSS",          "Drone"     },
 };
 
 // ── Channel lists ───────────────────────────────────────────────
@@ -762,14 +762,21 @@ void nrf_jammer() {
 
     options.clear();
     for (int i = 0; i < NRF_JAM_MODE_COUNT; i++) {
+#if defined(VARIONE_HIDE_NRF_EXTRAS)
+        // Demo build: hide modes that need gear the owner can't demo.
+        if (i == NRF_JAM_VIDEO || i == NRF_JAM_RC || i == NRF_JAM_ZIGBEE || i == NRF_JAM_DRONE)
+            continue;
+#endif
         int mIdx = i;
         options.push_back({MODE_INFO[i].name, [&selectedMode, &selectedAction, mIdx]() {
                                selectedMode = (NrfJamMode)mIdx;
                                selectedAction = 1;
                            }});
     }
+#if !defined(VARIONE_HIDE_NRF_EXTRAS)
     options.push_back({"Single CH", [&selectedAction]() { selectedAction = 2; }});
     options.push_back({"CH Hopper", [&selectedAction]() { selectedAction = 3; }});
+#endif
     options.push_back({"Reset Settings", [&selectedAction]() { selectedAction = 4; }});
     options.push_back({"Back", [=]() { returnToMenu = true; }});
 

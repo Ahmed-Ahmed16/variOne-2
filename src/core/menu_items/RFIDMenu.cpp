@@ -26,6 +26,7 @@ void RFIDMenu::optionsMenu() {
         {"Erase data",  [=]() { TagOMatic(TagOMatic::ERASE_MODE); }     },
         {"Write NDEF",  [=]() { TagOMatic(TagOMatic::WRITE_NDEF_MODE); }},
 #endif
+#if !defined(VARIONE_HIDE_RFID_EXTRAS)
 #ifndef LITE_VERSION
         {"Amiibolink",  [=]() { Amiibo(); }                             },
 #endif
@@ -34,6 +35,7 @@ void RFIDMenu::optionsMenu() {
         {"PN532 BLE",   [=]() { Pn532ble(); }                           },
 #if !defined(REMOVE_RFID_HW_INTERFACE)  // Remove Hardware interface menu due to lack of external GPIO
         {"PN532 UART",  [=]() { PN532KillerTools(); }                   },
+#endif
 #endif
 #endif
         {"Config",      [this]() { configMenu(); }                      },

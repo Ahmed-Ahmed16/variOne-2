@@ -28,18 +28,22 @@ void BleMenu::optionsMenu() {
     }
 #endif
 #if !defined(LITE_VERSION)
+#if !defined(VARIONE_HIDE_BLE_EXTRAS)
     options.push_back({"Media Cmds", [=]() { MediaCommands(hid_ble, true); }});
+#endif
     options.push_back({"BLE Scan", ble_scan});
+#if !defined(VARIONE_HIDE_BLE_EXTRAS)
     options.push_back({"iBeacon", [=]() {
                            ibeacon("VariOne", "e4c159a0-8c82-11e6-bdf4-0800200c9a66", 0x004C);
                        }});
     options.push_back({"Bad BLE", [=]() { ducky_setup(hid_ble, true); }});
     options.push_back({"BLE Keyboard", [=]() { ducky_keyboard(hid_ble, true); }});
 #endif
-    options.push_back({"BLE Spam", [=]() { spamMenu(); }});
+#endif
+    options.push_back({"BLE Popup Spam", [=]() { spamMenu(); }});
 
 #if !defined(LITE_VERSION)
-    options.push_back({"BLE Suite", [=]() { BleSuiteMenu(); }});
+    options.push_back({"BLE Attack Suite", [=]() { BleSuiteMenu(); }});
 #if !defined(VARIONE_HIDE_NINEBOT)
     options.push_back({"Ninebot", [=]() { BLENinebot(); }});
 #endif

@@ -65,11 +65,13 @@ void WifiMenu::optionsMenu() {
                        }});
     // options.push_back({"ReverseShell", [=]()       { ReverseShell(); }});
 #ifndef LITE_VERSION
+#if !defined(VARIONE_HIDE_WIFI_EXTRAS)
     options.push_back({"Listen TCP", listenTcpPort});
     options.push_back({"Client TCP", clientTCP});
     options.push_back({"SOCKS4 Proxy", []() { socks4Proxy(1080); }});
     options.push_back({"TelNET", telnet_setup});
     options.push_back({"SSH", lambdaHelper(ssh_setup, String(""))});
+#endif
     options.push_back({"Sniffer", sniffer_setup});
     options.push_back({"Scan Hosts", [=]() {
                            bool doScan = true;
@@ -85,9 +87,11 @@ void WifiMenu::optionsMenu() {
                                ARPScanner{esp_netinterface};
                            }
                        }});
+#if !defined(VARIONE_HIDE_WIFI_EXTRAS)
     options.push_back({"Wireguard", wg_setup});
     options.push_back({"Responder", responder});
     options.push_back({"VariGotchi", brucegotchi_start});
+#endif
     options.push_back({"WiFi Pass Recovery", wifi_recover_menu});
 #endif
     

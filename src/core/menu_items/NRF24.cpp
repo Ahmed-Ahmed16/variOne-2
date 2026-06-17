@@ -10,7 +10,7 @@ void NRF24Menu::optionsMenu() {
     options.clear();
     options.push_back({"Information", nrf_info});
     options.push_back({"Spectrum", nrf_spectrum});
-    #if !defined(LITE_VERSION)
+    #if !defined(LITE_VERSION) && !defined(VARIONE_HIDE_NRF_EXTRAS)
     options.push_back({"MouseJack", nrf_mousejack});
     #endif
     options.push_back({"NRF Jammer", nrf_jammer});
