@@ -56,3 +56,34 @@ pattern.
    shows title "Mount Storage" and the SD still mounts as a USB drive on a PC.
 
 **Pass:** all 6 items hidden/renamed as above; nothing else missing; storage still works.
+
+> **Icon follow-up (owner request, commit a05d36f):** RF menu icon also reverted to stock
+> (in addition to Batch 1's ir/ble/nrf/config). So RF/NRF/CONFIG/BLE/IR all show stock
+> icons; WiFi/RFID/Files/Others keep custom Vemo icons. Re-check after flashing the
+> rebuilt `VariOne_Vemo.zip`.
+
+---
+
+## Batch 10 — Rebrand Bruce → VariOne + Vemo boot/About
+
+**What changed:** visible-string rebrand (no code-symbol or capture-format changes). New
+`VARIONE_VERSION="1.0"` board macro drives displayed version; ifdef-guarded so the stock
+board still builds.
+
+1. **Boot splash:** power on → splash shows **"VariOne v1.0"** (+ Vemo boot art), not "Bruce".
+2. **Status bar:** top/status bar reads **"VariOne 1.0"**, not "BRUCE dev".
+3. **About:** main menu → Config → About (or Device Info) → title **"ABOUT VariOne"**;
+   first line **"VariOne v1.0"**; then **"Graduation Project - CIC New Cairo"** and
+   **"Supervised by Dr. Ahmed Gaber"**; diagnostics still listed below.
+4. **AP SSID/pwd:** start an AP feature (Evil Portal / WebUI / Connect-AP) → SSID broadcasts
+   as **"VariOne"**; connect with password **"varione1"** (8 chars — must NOT fall back to
+   an open AP). WebUI login = **admin / vari**; WebUI page title says VariOne.
+5. **BLE name:** run a BLE advertise feature → a phone BLE scanner sees **"VariOne-XXXX"**
+   (and Vari-* for BLE Suite attacks), not "Bruce-XXXX".
+6. **Capture-tool compat (regression guard):** capture an IR/PCAP/wardriving file → confirm
+   it still lands in **/BruceIR /BrucePCAP /BruceWardriving** with the original
+   "Filetype: Bruce IR File" / brand=Bruce headers (Flipper/Bruce parsers depend on these —
+   they were intentionally NOT rebranded).
+
+**Pass:** all displayed Bruce→VariOne; AP connects with varione1; BLE shows VariOne-…;
+capture files keep Bruce paths/headers.

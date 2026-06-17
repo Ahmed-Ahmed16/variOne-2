@@ -51,7 +51,7 @@ For each batch:
 | # | Batch | Status | Commit | Build (vari/stock) | HW |
 |---|-------|--------|--------|--------------------|----|
 | 1 | Critical BACK fix + logo reverts | ✅ done+built | 3b94c03 | ✅/✅ | — |
-| 2 | Menu declutter (hides) + Mount Storage | ✅ done+built | 2fb3c71 | ✅/✅ | — |
+| 2 | Menu declutter (hides) + Mount Storage | ✅ done+built | 9f67bde | ✅/✅ | — |
 | 3 | IR jammer fix | ☐ todo | — | — | — |
 | 4 | WiFi hides + keep capture→crack | ☐ todo | — | — | — |
 | 5 | BLE hides + rename | ☐ todo | — | — | — |
@@ -59,7 +59,7 @@ For each batch:
 | 7 | RF cleanup + all-band scanner | ☐ todo | — | — | — |
 | 8 | RFID cleanup | ☐ todo | — | — | — |
 | 9 | Mascot animation (needs owner art) | ☐ todo | — | — | — |
-| 10 | Rebrand Bruce→VariOne + Vemo boot/About | ☐ todo | — | — | — |
+| 10 | Rebrand Bruce→VariOne + Vemo boot/About | ✅ done+built | 4b2eedd | ✅/✅ | — |
 | 11 | BadUSB verify + demo scripts | ☐ todo | — | — | — |
 
 Status legend: ☐ todo · ◐ in-progress · ✅ done+built · 🔬 owner-HW-verified · ⏸ blocked.
