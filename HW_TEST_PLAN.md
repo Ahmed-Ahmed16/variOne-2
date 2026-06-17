@@ -87,3 +87,27 @@ board still builds.
 
 **Pass:** all displayed Bruce→VariOne; AP connects with varione1; BLE shows VariOne-…;
 capture files keep Bruce paths/headers.
+
+---
+
+## Batch 11 — BadUSB verify + demo scripts
+
+**What changed:** firmware was already wired (`-DUSB_as_HID=1`, native USBHIDKeyboard,
+Others → BadUSB & HID → BadUSB). No source touched. Added two **safe** awareness scripts +
+a README to `sd_files/BadUSB and BlueDucky/` so they flash to the SD card:
+`VariOne_demo_hello.txt`, `VariOne_demo_url.txt`, `VariOne_BadUSB_README.md`.
+
+Full owner verify checklist lives in that README. Quick version:
+
+1. **Enumerate:** plug VariOne into a Windows PC → Device Manager shows it under Keyboards
+   (or `lsusb` on Linux lists the HID).
+2. **hello demo:** Others → BadUSB & HID → BadUSB → SD Card → `BadUSB and BlueDucky/` →
+   `VariOne_demo_hello.txt` → press OK → Notepad opens and the awareness message is typed.
+3. **url demo:** run `VariOne_demo_url.txt` → Run dialog opens the awareness URL.
+4. **BACK cancels** mid-script; **re-run** works without re-plugging.
+
+**Pass:** PC sees a USB keyboard; both scripts run end-to-end; BACK cancels; re-run OK.
+
+> Note: these are SD-card data files — no firmware rebuild needed. The picker browses from
+> card root, so navigate into `BadUSB and BlueDucky/`. Scripts are Windows (`GUI r`); add a
+> Linux/macOS launcher line if the demo PC needs it.

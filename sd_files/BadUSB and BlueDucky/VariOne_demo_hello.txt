@@ -1,0 +1,13 @@
+REM VariOne BadUSB awareness demo - opens Notepad and types a safe message
+REM Harmless: no files changed, no commands run. Graduation demo only.
+DELAY 1500
+GUI r
+DELAY 600
+STRING notepad
+ENTER
+DELAY 1500
+STRINGLN This PC was just controlled by a VariOne BadUSB demo.
+STRINGLN A normal-looking USB device acted as a keyboard and typed this by itself.
+STRINGLN
+STRINGLN Lesson: never plug in or trust unknown USB devices.
+STRINGLN  -- VariOne | CIC New Cairo graduation project

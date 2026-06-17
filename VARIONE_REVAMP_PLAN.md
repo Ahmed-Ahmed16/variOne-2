@@ -60,7 +60,7 @@ For each batch:
 | 8 | RFID cleanup | ☐ todo | — | — | — |
 | 9 | Mascot animation (needs owner art) | ☐ todo | — | — | — |
 | 10 | Rebrand Bruce→VariOne + Vemo boot/About | ✅ done+built | 4b2eedd | ✅/✅ | — |
-| 11 | BadUSB verify + demo scripts | ☐ todo | — | — | — |
+| 11 | BadUSB verify + demo scripts | ✅ done (SD-data) | 7313592 | n/c (no src) | — |
 
 Status legend: ☐ todo · ◐ in-progress · ✅ done+built · 🔬 owner-HW-verified · ⏸ blocked.
 

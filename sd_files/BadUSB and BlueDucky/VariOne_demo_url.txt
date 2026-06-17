@@ -1,0 +1,7 @@
+REM VariOne BadUSB awareness demo - opens a browser to an awareness page
+REM Harmless: only opens a URL via the Run dialog. Graduation demo only.
+DELAY 1500
+GUI r
+DELAY 600
+STRING https://example.com/varione-awareness
+ENTER
