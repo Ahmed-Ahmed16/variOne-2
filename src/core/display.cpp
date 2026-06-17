@@ -7,6 +7,12 @@
 #include <JPEGDecoder.h>
 #include <interface.h> //for charging ischarging to print charging indicator
 #include <memory>
+#if defined(VARIONE_VEMO_UI)
+#include "modules/varione/ui/vemo_status.h"
+#ifndef VARIONE_VEMO_IDLE_MS
+#define VARIONE_VEMO_IDLE_MS 20000 // idle ms on the main menu before Vemo sleeps
+#endif
+#endif
 
 #define MAX_MENU_SIZE (int)(tftHeight / 25)
 
@@ -487,10 +493,42 @@ int loopOptions(
     if (index >= options.size()) index = 0;
     bool firstRender = true;
     static unsigned long menuOpenTs = 0; // timestamp when menu was first rendered
+#if defined(VARIONE_VEMO_UI)
+    unsigned long vemoIdleTimer = millis();
+    bool vemoAsleep = false;
+#endif
     drawMainBorder();
     while (1) {
         // Check for shutdown before drawing menu to avoid drawing a black bar on the screen
         if (exit) break;
+#if defined(VARIONE_VEMO_UI)
+        // Idle Vemo "sleeping" screen on the main menu. Any key restores the menu
+        // (the wake press is consumed, not treated as navigation). Scoped to the
+        // main menu so it never interferes with active feature screens.
+        if (menuType == MENU_TYPE_MAIN) {
+            if (AnyKeyPress) {
+                vemoIdleTimer = millis();
+                if (vemoAsleep) {
+                    vemoAsleep = false;
+                    redraw = true;
+                    check(UpPress);
+                    check(DownPress);
+                    check(NextPress);
+                    check(PrevPress);
+                    check(SelPress);
+                    check(EscPress);
+                    continue; // re-render the menu; don't navigate on the wake press
+                }
+            } else if (!vemoAsleep && (millis() - vemoIdleTimer > VARIONE_VEMO_IDLE_MS)) {
+                VariOneUI::drawVemoSleep();
+                vemoAsleep = true;
+            }
+            if (vemoAsleep) {
+                vTaskDelay(40 / portTICK_PERIOD_MS);
+                continue; // stay asleep until a key wakes us
+            }
+        }
+#endif
         if (menuType == MENU_TYPE_MAIN) {
             checkReboot();
             if (devModeCounter >= 5 && !bruceConfig.devMode) {

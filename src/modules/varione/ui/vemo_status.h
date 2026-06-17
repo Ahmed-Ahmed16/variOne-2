@@ -28,6 +28,11 @@ void updateVemoScanText(const String &message);
 // rows instead of raw dBm for awareness demos (plan Tier-1 chrome).
 String rssiBars(int rssiDbm);
 
+// Idle screen: centered sleeping Vemo head + "Zzz" on the minimal blue/black
+// theme. Drawn by the main menu after an idle timeout; any key restores the menu.
+// Falls back to a centered "Zzz..." text band if the sleeping art is unavailable.
+void drawVemoSleep();
+
 } // namespace VariOneUI
 
 #endif // VARIONE_VEMO_STATUS_H

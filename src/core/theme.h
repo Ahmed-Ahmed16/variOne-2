@@ -29,6 +29,7 @@ struct themeFiles {
     String vemo_head = "";
     String vemo_success = "";
     String vemo_error = "";
+    String vemo_sleeping = "";
 };
 
 struct themeInfo {
@@ -59,6 +60,7 @@ struct themeInfo {
     bool vemo_head = false;
     bool vemo_success = false;
     bool vemo_error = false;
+    bool vemo_sleeping = false;
     int gifDuration = 0;
 
     // Theme file paths, colors and border

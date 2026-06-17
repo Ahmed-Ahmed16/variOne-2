@@ -34,9 +34,10 @@ const char *kDefaultFooter = "<> Nav   OK Sel   BACK Esc";
 void drawBottomBand(const String &text, uint16_t fg, uint16_t bg) {
     const int h = 24;
     const int y = tftHeight - h - 4;
+    const int textSize = text.length() > 12 ? FP : FM;
     tft.fillRoundRect(8, y, tftWidth - 16, h, 6, bg);
     tft.setTextColor(fg, bg);
-    tft.setTextSize(FM);
+    tft.setTextSize(textSize);
     tft.setTextDatum(MC_DATUM);
     tft.drawString(text, tftWidth / 2, y + h / 2);
     tft.setTextDatum(TL_DATUM);
@@ -145,6 +146,41 @@ void updateVemoScanText(const String &message) {
 #else
     if (s_scanHeadActive) repaintScanText(message);
     else displayTextLine(message); // no head -> stock band each time
+#endif
+}
+
+void drawVemoSleep() {
+#ifndef HAS_SCREEN
+    Serial.println("VEMO idle: sleeping");
+#else
+    tft.fillScreen(bruceConfig.bgColor);
+
+    bool drewArt = false;
+    if (bruceConfig.theme.vemo_sleeping && bruceConfig.theme.paths.vemo_sleeping != "") {
+        const int headW = 80; // art is 80x80; centered
+        const int headX = (tftWidth - headW) / 2;
+        const int headY = (tftHeight - headW) / 2 - 6;
+        drewArt = drawImg(
+            *bruceConfig.themeFS(),
+            bruceConfig.getThemeItemImg(bruceConfig.theme.paths.vemo_sleeping),
+            headX,
+            headY,
+            false,
+            0,
+            false
+        );
+    }
+
+    // "Zzz" cue (also the whole screen when no art is available).
+    tft.setTextColor(bruceConfig.secColor, bruceConfig.bgColor);
+    tft.setTextSize(FM);
+    tft.setTextDatum(MC_DATUM);
+    if (drewArt) {
+        tft.drawString("Z z z", tftWidth / 2, tftHeight - 18);
+    } else {
+        tft.drawString("Zzz...", tftWidth / 2, tftHeight / 2);
+    }
+    tft.setTextDatum(TL_DATUM);
 #endif
 }
 
