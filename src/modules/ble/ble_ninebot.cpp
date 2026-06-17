@@ -39,6 +39,18 @@ static NimBLEUUID txCharUUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
 
 bool scooterDisconnected = true;
 
+// Esc-pollable wait. Returns true if BACK was pressed during the delay.
+// Plain delay() can outlast the input task's ~75 ms EscPress auto-clear, so a
+// mid-wait BACK tap is lost; polling check(EscPress) every ~20 ms catches it.
+static bool cancellableDelay(uint32_t ms) {
+    uint32_t start = millis();
+    while (millis() - start < ms) {
+        if (check(EscPress)) return true;
+        delay(20);
+    }
+    return false;
+}
+
 class ScooterClientCallbacks : public NimBLEClientCallbacks {
     void onDisconnect(NimBLEClient *client) __Override__ { scooterDisconnected = true; }
 };
@@ -137,22 +149,42 @@ void BLENinebot::loop() {
     bool needFullDraw = true;
 
     while (!check(EscPress)) {
+#if defined(VARIONE_VEMO_UI)
         if (needFullDraw) {
             VariOneUI::beginVemoScan("Scanning BLE");
             needFullDraw = false;
         } else {
             VariOneUI::updateVemoScanText("Scanning BLE");
         }
+#else
+        redrawMainBorder();
+        displayTextLine("Scanning...");
+#endif
 #ifdef NIMBLE_V2_PLUS
-        NimBLEScanResults results = pBLEScan->getResults(SCAN_TIME * 1000, false);
+        // Non-blocking scan: poll EscPress every ~20 ms so a BACK tap mid-scan
+        // is caught before the input task auto-clears it (~75 ms). A blocking
+        // getResults() runs the full 5 s and loses the tap -> rescans forever.
+        pBLEScan->start(SCAN_TIME * 1000, false, true);
+        while (pBLEScan->isScanning()) {
+            if (check(EscPress)) {
+                pBLEScan->stop();
+                return;
+            }
+            delay(20);
+        }
+        NimBLEScanResults results = pBLEScan->getResults();
 #else
         NimBLEScanResults results = pBLEScan->start(SCAN_TIME, false);
 #endif
         if (check(EscPress)) return;
 
         if (results.getCount() == 0) {
+#if defined(VARIONE_VEMO_UI)
             VariOneUI::updateVemoScanText("No scooter");
-            delay(UI_READ_DELAY);
+#else
+            displayTextLine("No Scooter found. Retry...");
+#endif
+            if (cancellableDelay(UI_READ_DELAY)) return; // BACK exits the rescan wait
             pBLEScan->clearResults();
             deviceSelection.clear();
             continue; // head stays drawn -> no blink
@@ -166,12 +198,16 @@ void BLENinebot::loop() {
             const NimBLEAdvertisedDevice *adv = results.getDevice(i);
             String name = adv->getName().length() ? String(adv->getName().c_str())
                                                   : String(adv->getAddress().toString().c_str());
+#if defined(VARIONE_VEMO_UI)
             name += " " + VariOneUI::rssiBars(adv->getRSSI());
+#endif
 #else
             NimBLEAdvertisedDevice adv = results.getDevice(i);
             String name = adv.getName().length() ? String(adv.getName().c_str())
                                                  : String(adv.getAddress().toString().c_str());
+#if defined(VARIONE_VEMO_UI)
             name += " " + VariOneUI::rssiBars(adv.getRSSI());
+#endif
 #endif
 
             deviceSelection.push_back(
@@ -185,16 +221,28 @@ void BLENinebot::loop() {
                      if (!pClient->connect(adv.getAddress()))
 #endif
                      {
+#if defined(VARIONE_VEMO_UI)
+                         VariOneUI::showVemoStatus("Connection failed", VariOneUI::VemoStatus::Error);
+#else
                          displayTextLine("Connection failed.");
+#endif
                          delay(UI_READ_DELAY);
                          clientDisconnect();
                          loopOptions(deviceSelection);
                          return;
                      }
 
+#if defined(VARIONE_VEMO_UI)
+                     VariOneUI::showVemoStatus("Connected", VariOneUI::VemoStatus::Success);
+#else
                      displayTextLine("Connected!");
+#endif
                      if (!pClient->discoverAttributes()) {
+#if defined(VARIONE_VEMO_UI)
+                         VariOneUI::showVemoStatus("Discover failed", VariOneUI::VemoStatus::Error);
+#else
                          displayTextLine("Discover failed.");
+#endif
                          clientDisconnect();
                          loopOptions(deviceSelection);
                          return;
@@ -210,10 +258,18 @@ void BLENinebot::loop() {
                              loopOptions(deviceSelection);
                              return;
                          } else {
+#if defined(VARIONE_VEMO_UI)
+                             VariOneUI::showVemoStatus("TX not writable", VariOneUI::VemoStatus::Error);
+#else
                              displayTextLine("TX not writable");
+#endif
                          }
                      } else {
+#if defined(VARIONE_VEMO_UI)
+                         VariOneUI::showVemoStatus("Not a scooter", VariOneUI::VemoStatus::Error);
+#else
                          displayTextLine("Not a scooter");
+#endif
                      }
 
                      clientDisconnect();
@@ -230,7 +286,9 @@ void BLENinebot::loop() {
         if (returnToMenu) return;
 
         pBLEScan->clearResults();
+#if defined(VARIONE_VEMO_UI)
         needFullDraw = true; // loopOptions took the screen -> redraw head next cycle
+#endif
     }
 }
 #endif
