@@ -58,7 +58,7 @@ For each batch:
 | 6 | NRF jammer rename + hide | ✅ done+built | 1ecc44d | ✅/✅ | — |
 | 7 | RF cleanup + all-band scanner | ✅ done+built | ce07635 | ✅/✅ | — |
 | 8 | RFID cleanup | ✅ done+built | 1ecc44d | ✅/✅ | — |
-| 9 | Mascot animation (needs owner art) | ☐ todo | — | — | — |
+| 9 | Idle Vemo sleep screen + art (mood-swap deferred) | ✅ done+built | 2aaa7f2 | ✅/✅ | — |
 | 10 | Rebrand Bruce→VariOne + Vemo boot/About | ✅ done+built | 4b2eedd | ✅/✅ | — |
 | 11 | BadUSB verify + demo scripts | ✅ done (SD-data) | 7313592 | n/c (no src) | — |
 

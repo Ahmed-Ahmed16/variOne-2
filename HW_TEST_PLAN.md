@@ -190,3 +190,41 @@ bit-banged wave that receivers filtered out).
 
 **Pass:** at close range the jammer blocks/degrades a real remote in at least Carrier mode;
 BACK cancels cleanly.
+
+---
+
+## Batch 9 — Idle Vemo sleeping screen (commit 2aaa7f2)
+
+**What changed:** after 20 s idle on the **main menu**, a centered sleeping Vemo head +
+"Zzz" is shown; any key restores the menu. New theme frame `vemo_sleeping.png` installed;
+mascot art added under `art/vemo/`.
+
+1. Boot to the main menu and **don't touch any button for ~20 s** → the sleeping Vemo head
+   + "Zzz" appears.
+2. Press any button → the **main menu returns immediately**, and that press does NOT jump
+   the selection (it's consumed as a wake).
+3. Enter any feature (WiFi/BLE/RF/etc.) and leave it idle → the sleep screen must **NOT**
+   appear inside features (it's main-menu only).
+4. If the SD theme is missing the frame, you should see a centered "Zzz..." text instead of
+   a crash.
+5. Interaction note: if the brightness **dimmer** (Config → power/dimmer) is set short, the
+   screen may dim/turn off on its own timer independently — that's the existing power-save.
+   The idle threshold is `VARIONE_VEMO_IDLE_MS` (20 s) in the board flags.
+
+**Pass:** sleep screen appears on main-menu idle, wakes cleanly without navigating, never
+shows inside features, no crash.
+
+> Deferred (needs art / layout work, not blocking): animated blink + per-state mood head
+> swap on the scan screen. The mood heads (thinking/success) are in `art/vemo/device/`; the
+> scan box is 64px while those frames are 80px, so wiring them needs a layout pass. Flagged
+> for a later batch — say the word and I'll do it.
+
+---
+
+## Build summary (all batches)
+
+Every batch built green locally on **both** environments before commit:
+`pio run -e varione-s3` (SUCCESS, within OTA) and `pio run -e esp32-s3-devkitc-1` (SUCCESS).
+Nothing pushed — all commits are local on `ui-revamp`. Flash `Bruce-varione-s3.bin` (or
+`pio run -e varione-s3 -t upload`) and refresh the SD `VariOne_Vemo` theme, then work
+through the per-batch checks above.
