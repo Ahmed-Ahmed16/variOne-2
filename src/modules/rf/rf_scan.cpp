@@ -2,6 +2,7 @@
 #include "core/led_control.h"
 #include "core/sd_functions.h"
 #include "core/type_convertion.h"
+#include "modules/varione/ui/vemo_status.h"
 #include "rf_send.h"
 #include <globals.h>
 #include <sstream>
@@ -593,7 +594,11 @@ bool RCSwitch_SaveSignal(float frequency, RfCodes codes, bool raw, char *key, bo
     String filename = "";
 
     if (!checkLittleFsSize()) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("LittleFS Full", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("LittleFS is Full", true);
+#endif
         return false;
     }
 
@@ -637,15 +642,25 @@ bool RCSwitch_SaveSignal(float frequency, RfCodes codes, bool raw, char *key, bo
         filename = "raw.sub";
     }
 
-    String filepath = "/BruceRF";
+    String filepath = "/VariRF";
     if (autoSave) filepath += "/autoSaved";
     File file = createNewFile(fs, filepath, filename);
 
     if (file) {
         file.println(subfile_out);
-        if (!autoSave) displaySuccess(file.path());
+        if (!autoSave) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("Saved RF", VariOneUI::VemoStatus::Success);
+#else
+            displaySuccess(file.path());
+#endif
+        }
     } else {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("Save failed", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("Error saving file", true);
+#endif
     }
 
     file.close();
@@ -656,7 +671,11 @@ String rf_scan(float start_freq, float stop_freq, int max_loops) {
     // derived from https://github.com/mcore1976/cc1101-tool/blob/main/cc1101-tool-esp32.ino#L480
 
     if (bruceConfigPins.rfModule != CC1101_SPI_MODULE) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("CC1101 only", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("rf scanning is available with CC1101 only", true);
+#endif
         return ""; // only CC1101 is supported for this
     }
     if (!initRfModule("rx", start_freq)) return "";

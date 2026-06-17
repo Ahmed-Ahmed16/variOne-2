@@ -552,7 +552,7 @@ int PN532::load() {
     FS *fs;
 
     if (!getFsStorage(fs)) return FAILURE;
-    filepath = loopSD(*fs, true, "RFID|NFC", "/BruceRFID");
+    filepath = loopSD(*fs, true, "RFID|NFC", "/VariRFID");
     file = fs->open(filepath, FILE_READ);
 
     if (!file) { return FAILURE; }
@@ -586,7 +586,7 @@ int PN532::save(String filename) {
     FS *fs;
     if (!getFsStorage(fs)) return FAILURE;
 
-    File file = createNewFile(fs, "/BruceRFID", filename + ".rfid");
+    File file = createNewFile(fs, "/VariRFID", filename + ".rfid");
 
     if (!file) { return FAILURE; }
 

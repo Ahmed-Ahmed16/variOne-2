@@ -131,12 +131,12 @@ void brucegotchi_start() {
     FS *handshakeFs = nullptr;
     if (setupSdCard()) {
         isLittleFS = false;
-        if (!SD.exists("/BrucePCAP")) SD.mkdir("/BrucePCAP");
-        if (!SD.exists("/BrucePCAP/handshakes")) SD.mkdir("/BrucePCAP/handshakes");
+        if (!SD.exists("/VariPCAP")) SD.mkdir("/VariPCAP");
+        if (!SD.exists("/VariPCAP/handshakes")) SD.mkdir("/VariPCAP/handshakes");
         handshakeFs = &SD;
     } else {
-        if (!LittleFS.exists("/BrucePCAP")) LittleFS.mkdir("/BrucePCAP");
-        if (!LittleFS.exists("/BrucePCAP/handshakes")) LittleFS.mkdir("/BrucePCAP/handshakes");
+        if (!LittleFS.exists("/VariPCAP")) LittleFS.mkdir("/VariPCAP");
+        if (!LittleFS.exists("/VariPCAP/handshakes")) LittleFS.mkdir("/VariPCAP/handshakes");
         isLittleFS = true;
         handshakeFs = &LittleFS;
     }

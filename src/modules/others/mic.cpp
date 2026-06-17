@@ -749,8 +749,8 @@ void mic_record_app() {
             goto cleanup_and_exit;
         }
 
-        if (!fs->exists("/BruceMIC")) {
-            if (!fs->mkdir("/BruceMIC")) {
+        if (!fs->exists("/VariMIC")) {
+            if (!fs->mkdir("/VariMIC")) {
                 displayError("Dir creation failed", true);
                 goto cleanup_and_exit;
             }
@@ -759,7 +759,7 @@ void mic_record_app() {
         char filename[64];
         int index = 0;
         do {
-            snprintf(filename, sizeof(filename), "/BruceMIC/recording_%d.wav", index++);
+            snprintf(filename, sizeof(filename), "/VariMIC/recording_%d.wav", index++);
         } while (fs->exists(filename));
 
         //===== UI CLEANING AND SETUP =====

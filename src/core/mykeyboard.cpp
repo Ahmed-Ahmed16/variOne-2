@@ -409,9 +409,20 @@ KeyboardAction handleKeyboardSelection(
             case 3: // SPACE button
                 if (handleSpaceAdd(current_text, max_size)) return KEYBOARD_REDRAW;
                 break;
+#if defined(VARIONE_VEMO_UI)
+            case 4: // '@' one-press quick key (VariOne)
+                if (handleCharacterAdd(current_text, '@', cursor_x, cursor_y, max_size, mask_input))
+                    return KEYBOARD_REDRAW;
+                break;
+            case 5: // '!' one-press quick key (VariOne)
+                if (handleCharacterAdd(current_text, '!', cursor_x, cursor_y, max_size, mask_input))
+                    return KEYBOARD_REDRAW;
+                break;
+#else
             case 4: // BACK button
                 current_text = "\x1B";
                 return KEYBOARD_CANCEL;
+#endif
             default: break;
         }
 
@@ -505,6 +516,20 @@ String generalKeyboard(
 #else           // small keyboard size, for  smaller screen, like Marauder Mini and others ;)
 #define KBLH 10 // Keyboard Buttons Line Height
     // in smaller screens there is no space left for the BACK button
+#if defined(VARIONE_VEMO_UI)
+    // VariOne (160px wide): SPACE ends at x=122, so the free strip 124..160 fits
+    // two one-press quick keys, '@' and '!', so creds/emails don't need CAP-hunt.
+    // These take button indices 4 and 5 (handled in handleKeyboardSelection).
+    buttons_number = 6; // {"OK","CAP","DEL","SPACE","@","!"}
+    int btns_layout[buttons_number][3] = {
+        {2,   20, 5  }, // OK button
+        {22,  25, 25 }, // CAP button
+        {47,  25, 50 }, // DEL button
+        {72,  50, 75 }, // SPACE button
+        {124, 16, 128}, // @ quick key (index 4)
+        {142, 16, 146}, // ! quick key (index 5)
+    };
+#else
     buttons_number = 4; // {"OK", "CAP", "DEL", "SPACE"};
 
     // 5px per char
@@ -515,6 +540,7 @@ String generalKeyboard(
         {72, 50, 75}, // SPACE button
         // {122, 40, 125}, // BACK button
     };
+#endif
 
     const int key_width = tftWidth / KeyboardWidth;
     const int key_height = (tftHeight - (2 * KBLH + 14)) / KeyboardHeight;
@@ -655,6 +681,26 @@ String generalKeyboard(
                     );
                 } else tft.setTextColor(getComplementaryColor2(bruceConfig.bgColor), bruceConfig.bgColor);
                 tft.drawString("BACK", btns_layout[4][2], 5);
+#endif
+#if defined(VARIONE_VEMO_UI)
+                // '@' quick key (button index 4)
+                if (x == 4 && y == -1) {
+                    tft.setTextColor(bruceConfig.bgColor, getComplementaryColor2(bruceConfig.bgColor));
+                    tft.fillRect(
+                        btns_layout[4][0], 2, btns_layout[4][1], KBLH,
+                        getComplementaryColor2(bruceConfig.bgColor)
+                    );
+                } else tft.setTextColor(getComplementaryColor2(bruceConfig.bgColor), bruceConfig.bgColor);
+                tft.drawString("@", btns_layout[4][2], 5);
+                // '!' quick key (button index 5)
+                if (x == 5 && y == -1) {
+                    tft.setTextColor(bruceConfig.bgColor, getComplementaryColor2(bruceConfig.bgColor));
+                    tft.fillRect(
+                        btns_layout[5][0], 2, btns_layout[5][1], KBLH,
+                        getComplementaryColor2(bruceConfig.bgColor)
+                    );
+                } else tft.setTextColor(getComplementaryColor2(bruceConfig.bgColor), bruceConfig.bgColor);
+                tft.drawString("!", btns_layout[5][2], 5);
 #endif
             }
 

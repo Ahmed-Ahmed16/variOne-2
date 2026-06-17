@@ -1,26 +1,40 @@
 #include "save.h"
+#include "modules/varione/ui/vemo_status.h"
+
 bool rf_raw_save(RawRecording recorded) {
     FS *fs = nullptr;
     if (!getFsStorage(fs) || fs == nullptr) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("No space left", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("No space left on device", true);
+#endif
         return false;
     }
 
     char filename[32];
     int index = 0;
 
-    if (!fs->exists("/BruceRF")) {
-        if (!fs->mkdir("/BruceRF")) {
+    if (!fs->exists("/VariRF")) {
+        if (!fs->mkdir("/VariRF")) {
+#if defined(VARIONE_VEMO_UI)
+            VariOneUI::showVemoStatus("Directory failed", VariOneUI::VemoStatus::Error, true);
+#else
             displayError("Error creating directory", true);
+#endif
             return false;
         }
     }
 
-    do { snprintf(filename, sizeof(filename), "/BruceRF/raw_%d.sub", index++); } while (fs->exists(filename));
+    do { snprintf(filename, sizeof(filename), "/VariRF/raw_%d.sub", index++); } while (fs->exists(filename));
 
     File file = fs->open(filename, FILE_WRITE, true);
     if (!file) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::showVemoStatus("File create failed", VariOneUI::VemoStatus::Error, true);
+#else
         displayError("Error creating file", true);
+#endif
         return false;
     }
 
@@ -70,6 +84,10 @@ bool rf_raw_save(RawRecording recorded) {
     }
 
     file.close();
+#if defined(VARIONE_VEMO_UI)
+    VariOneUI::showVemoStatus("Saved RF", VariOneUI::VemoStatus::Success, true);
+#else
     displaySuccess(filename, true);
+#endif
     return true;
 }

@@ -412,9 +412,9 @@ String IrRead::loop_headless(int max_loops) {
 bool IrRead::write_file(String filename, FS *fs) {
     if (fs == nullptr) return false;
 
-    if (!(*fs).exists("/BruceIR")) (*fs).mkdir("/BruceIR");
+    if (!(*fs).exists("/VariIR")) (*fs).mkdir("/VariIR");
 
-    while ((*fs).exists("/BruceIR/" + filename + ".ir")) {
+    while ((*fs).exists("/VariIR/" + filename + ".ir")) {
         int ch = 1;
         int i = 1;
 
@@ -433,10 +433,10 @@ bool IrRead::write_file(String filename, FS *fs) {
         switch (ch) {
             case 1:
                 filename += "_";
-                while ((*fs).exists("/BruceIR/" + filename + String(i) + ".ir")) i++;
+                while ((*fs).exists("/VariIR/" + filename + String(i) + ".ir")) i++;
                 filename += String(i);
                 break;
-            case 2: (*fs).remove("/BruceIR/" + filename + ".ir"); break;
+            case 2: (*fs).remove("/VariIR/" + filename + ".ir"); break;
             case 3:
                 filename = keyboard(filename, 30, "File name:");
                 display_banner();
@@ -447,15 +447,15 @@ bool IrRead::write_file(String filename, FS *fs) {
     /*
     /Old "Add num index" solution
 
-    if ((*fs).exists("/BruceIR/" + filename + ".ir")) {
+    if ((*fs).exists("/VariIR/" + filename + ".ir")) {
         int i = 1;
         filename += "_";
-        while((*fs).exists("/BruceIR/" + filename + String(i) + ".ir")) i++;
+        while((*fs).exists("/VariIR/" + filename + String(i) + ".ir")) i++;
         filename += String(i);
     }
     */
 
-    File file = (*fs).open("/BruceIR/" + filename + ".ir", FILE_WRITE);
+    File file = (*fs).open("/VariIR/" + filename + ".ir", FILE_WRITE);
 
     if (!file) { return false; }
 

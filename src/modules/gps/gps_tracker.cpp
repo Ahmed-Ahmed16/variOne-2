@@ -186,9 +186,9 @@ void GPSTracker::add_initial_file_data(File file) {
 void GPSTracker::add_final_file_data() {
     FS *fs;
     if (!getFsStorage(fs)) return;
-    if (filename == "" || !(*fs).exists("/BruceGPS/" + filename)) return;
+    if (filename == "" || !(*fs).exists("/VariGPS/" + filename)) return;
 
-    File file = (*fs).open("/BruceGPS/" + filename, FILE_APPEND);
+    File file = (*fs).open("/VariGPS/" + filename, FILE_APPEND);
 
     if (!file) return;
     file.println("    </trkseg>");
@@ -208,11 +208,11 @@ void GPSTracker::add_coord() {
 
     if (filename == "") create_filename();
 
-    if (!(*fs).exists("/BruceGPS")) (*fs).mkdir("/BruceGPS");
+    if (!(*fs).exists("/VariGPS")) (*fs).mkdir("/VariGPS");
 
     bool is_new_file = false;
-    if (!(*fs).exists("/BruceGPS/" + filename)) is_new_file = true;
-    File file = (*fs).open("/BruceGPS/" + filename, is_new_file ? FILE_WRITE : FILE_APPEND);
+    if (!(*fs).exists("/VariGPS/" + filename)) is_new_file = true;
+    File file = (*fs).open("/VariGPS/" + filename, is_new_file ? FILE_WRITE : FILE_APPEND);
 
     if (!file) {
         padprintln("Failed to open file for writing");

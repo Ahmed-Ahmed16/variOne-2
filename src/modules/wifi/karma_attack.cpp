@@ -2230,7 +2230,7 @@ void saveHandshakeToFile(const HandshakeCapture &hs) {
     FS *fs = nullptr;
     if (!getFsStorage(fs)) return;
 
-    if (!fs->exists("/BrucePCAP/handshakes")) { fs->mkdir("/BrucePCAP/handshakes"); }
+    if (!fs->exists("/VariPCAP/handshakes")) { fs->mkdir("/VariPCAP/handshakes"); }
 
     char macStr[18];
     snprintf(
@@ -2245,7 +2245,7 @@ void saveHandshakeToFile(const HandshakeCapture &hs) {
         hs.bssid[5]
     );
 
-    String filename = "/BrucePCAP/handshakes/HS_" + String(macStr) + "_" + hs.ssid + ".pcap";
+    String filename = "/VariPCAP/handshakes/HS_" + String(macStr) + "_" + hs.ssid + ".pcap";
     filename.replace(" ", "_");
     filename.replace("*", "");
 
@@ -3276,8 +3276,8 @@ void karma_setup() {
                          {"Handshakes",
                  [&]() {
                               FS *fs;
-                              if (getFsStorage(fs) && fs->exists("/BrucePCAP/handshakes")) {
-                                  loopSD(*fs, false, "PCAP", "/BrucePCAP/handshakes");
+                              if (getFsStorage(fs) && fs->exists("/VariPCAP/handshakes")) {
+                                  loopSD(*fs, false, "PCAP", "/VariPCAP/handshakes");
                               } else {
                                   displayTextLine("No handshakes yet");
                                   delay(1000);

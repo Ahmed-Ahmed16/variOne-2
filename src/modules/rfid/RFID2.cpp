@@ -117,7 +117,7 @@ int RFID2::load() {
     FS *fs;
 
     if (!getFsStorage(fs)) return FAILURE;
-    filepath = loopSD(*fs, true, "RFID|NFC", "/BruceRFID");
+    filepath = loopSD(*fs, true, "RFID|NFC", "/VariRFID");
     file = fs->open(filepath, FILE_READ);
 
     if (!file) { return FAILURE; }
@@ -151,14 +151,14 @@ int RFID2::save(String filename) {
     FS *fs;
     if (!getFsStorage(fs)) return FAILURE;
 
-    if (!(*fs).exists("/BruceRFID")) (*fs).mkdir("/BruceRFID");
-    if ((*fs).exists("/BruceRFID/" + filename + ".rfid")) {
+    if (!(*fs).exists("/VariRFID")) (*fs).mkdir("/VariRFID");
+    if ((*fs).exists("/VariRFID/" + filename + ".rfid")) {
         int i = 1;
         filename += "_";
-        while ((*fs).exists("/BruceRFID/" + filename + String(i) + ".rfid")) i++;
+        while ((*fs).exists("/VariRFID/" + filename + String(i) + ".rfid")) i++;
         filename += String(i);
     }
-    File file = (*fs).open("/BruceRFID/" + filename + ".rfid", FILE_WRITE);
+    File file = (*fs).open("/VariRFID/" + filename + ".rfid", FILE_WRITE);
 
     if (!file) { return FAILURE; }
 

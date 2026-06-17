@@ -238,11 +238,11 @@ void otherIRcodes() {
     }
 
     // select a file to tx
-    if (!(*fs).exists("/BruceIR")) (*fs).mkdir("/BruceIR");
+    if (!(*fs).exists("/VariIR")) (*fs).mkdir("/VariIR");
 
     // startPath: remember the last visited folder so the user lands back there
     // after pressing back in the command list
-    String startPath = "/BruceIR";
+    String startPath = "/VariIR";
 
     while (true) {
         filepath = loopSD(*fs, true, "IR", startPath);

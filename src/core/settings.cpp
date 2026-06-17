@@ -1655,7 +1655,7 @@ bool appStoreInstalled() {
         return false;
     }
 
-    return fs->exists("/BruceJS/Tools/App Store.js");
+    return fs->exists("/VariJS/Tools/App Store.js");
 }
 
 #include <HTTPClient.h>
@@ -1673,16 +1673,16 @@ void installAppStoreJS() {
         return;
     }
 
-    if (!fs->exists("/BruceJS")) {
-        if (!fs->mkdir("/BruceJS")) {
-            displayWarning("Failed to create /BruceJS directory", true);
+    if (!fs->exists("/VariJS")) {
+        if (!fs->mkdir("/VariJS")) {
+            displayWarning("Failed to create /VariJS directory", true);
             return;
         }
     }
 
-    if (!fs->exists("/BruceJS/Tools")) {
-        if (!fs->mkdir("/BruceJS/Tools")) {
-            displayWarning("Failed to create /BruceJS/Tools directory", true);
+    if (!fs->exists("/VariJS/Tools")) {
+        if (!fs->mkdir("/VariJS/Tools")) {
+            displayWarning("Failed to create /VariJS/Tools directory", true);
             return;
         }
     }
@@ -1696,7 +1696,7 @@ void installAppStoreJS() {
         return;
     }
 
-    File file = fs->open("/BruceJS/Tools/App Store.js", FILE_WRITE);
+    File file = fs->open("/VariJS/Tools/App Store.js", FILE_WRITE);
     if (!file) {
         displayWarning("Failed to save App Store", true);
         return;
