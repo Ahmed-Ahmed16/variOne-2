@@ -4,6 +4,7 @@
 #include "core/mykeyboard.h"
 #include "core/sd_functions.h"
 #include "core/utils.h"
+#include "modules/varione/debrief/debrief.h"
 #if defined(USB_as_HID)
 #include "tusb.h"
 #endif
@@ -304,7 +305,10 @@ void ducky_setup(HIDInterface *&hid, bool ble) {
         printStatusBadUSBBLE(String(BTN_ALIAS) + " to start");
         if (!waitForButtonPress()) { goto EXIT; }
         delay(200);
+        uint32_t duckyT0 = millis();
         key_input(*fs, bad_script, hid);
+        // Arm an awareness debrief for what just got typed (run later, shallow stack).
+        debriefArmBadUSB(bad_script, (millis() - duckyT0) / 1000);
 
         printStatusBadUSBBLE("Finished - " + String(BTN_ALIAS) + " to restart");
         if (!waitForButtonPress()) { goto EXIT; }
@@ -320,6 +324,9 @@ EXIT:
         Serial.begin(115200); // Force restart of Serial, just in case....
 #endif
     }
+    // After the runner unwinds, offer the unified BadUSB awareness debrief (only
+    // fires if a script actually ran this session — arm sets the pending flag).
+    debriefRunPending();
     returnToMenu = true;
 }
 

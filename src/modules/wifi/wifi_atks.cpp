@@ -563,7 +563,7 @@ void capture_handshake(String tssid, String mac, uint8_t channel) {
     char hsFileName[128];
     sprintf(
         hsFileName,
-        "/BrucePCAP/handshakes/HS_%02X%02X%02X%02X%02X%02X_%s.pcap",
+        "/VariPCAP/handshakes/HS_%02X%02X%02X%02X%02X%02X_%s.pcap",
         bssid_array[0],
         bssid_array[1],
         bssid_array[2],
@@ -578,17 +578,17 @@ void capture_handshake(String tssid, String mac, uint8_t channel) {
     if (setupSdCard()) {
         fs = &SD;
         isLittleFS = false;
-        if (!SD.exists("/BrucePCAP/handshakes")) {
-            SD.mkdir("/BrucePCAP");
-            SD.mkdir("/BrucePCAP/handshakes");
+        if (!SD.exists("/VariPCAP/handshakes")) {
+            SD.mkdir("/VariPCAP");
+            SD.mkdir("/VariPCAP/handshakes");
         }
         hsExists = SD.exists(hsFileName);
     } else {
         fs = &LittleFS;
         isLittleFS = true;
-        if (!LittleFS.exists("/BrucePCAP/handshakes")) {
-            LittleFS.mkdir("/BrucePCAP");
-            LittleFS.mkdir("/BrucePCAP/handshakes");
+        if (!LittleFS.exists("/VariPCAP/handshakes")) {
+            LittleFS.mkdir("/VariPCAP");
+            LittleFS.mkdir("/VariPCAP/handshakes");
         }
         hsExists = LittleFS.exists(hsFileName);
     }
@@ -958,6 +958,25 @@ const char rickrollssids[] PROGMEM = {"01 Never gonna give you up\n"
                                       "07 Never gonna tell a lie\n"
                                       "08 and hurt you\n"};
 
+// VariOne: graduation-project team names, broadcast as fake APs for the demo.
+const char gradProjectSSIDs[] PROGMEM = {"Dracosec\n"
+                                         "Odyssey\n"
+                                         "Sekka\n"
+                                         "Finova\n"
+                                         "Karek-Keda\n"
+                                         "Vortexa\n"
+                                         "Recycle & Reward\n"
+                                         "WiFi Radar\n"
+                                         "Attrisense\n"
+                                         "SmartShield\n"
+                                         "GNS3 Network Topology\n"
+                                         "Sensefy\n"
+                                         "EduEase\n"
+                                         "Eventora\n"
+                                         "SDN-OS\n"
+                                         "calorify\n"
+                                         "ideal charge\n"};
+
 void beaconSpamList(const char list[]) {
     uint8_t beaconPacket[BEACON_PKT_LEN];
     uint8_t macAddr[6];
@@ -1046,6 +1065,11 @@ void beaconAttack() {
     // for random generator
     randomSeed(1);
     options = {
+        {"Grad Projects",
+         [&]() {
+             BeaconMode = 5;
+             txt = "Spamming Grad";
+         }                        },
         {"Funny SSID",
          [&]() {
              BeaconMode = 0;
@@ -1100,6 +1124,8 @@ void beaconAttack() {
         } else if (BeaconMode == 2) {
             char *randoms = randomSSID();
             beaconSpamList(randoms);
+        } else if (BeaconMode == 5) {
+            beaconSpamList(gradProjectSSIDs);
         }
 #if !defined(LITE_VERSION)
         else if (BeaconMode == 4) {
