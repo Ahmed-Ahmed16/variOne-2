@@ -168,3 +168,25 @@ RFID I2C reads) still function.
 
 **Pass:** Bruteforce/Jammer Itmt gone; Band Scanner sweeps all three bands, points at an
 active transmitter, BACK cancels.
+
+---
+
+## Batch 3 — IR jammer fix (commit 37230f9)
+
+**What changed:** rewrote the jammer to a continuous hardware LEDC carrier (was a sparse
+bit-banged wave that receivers filtered out).
+
+1. IR → IR Jammer → pick **Carrier 38kHz**. Point VariOne's IR LED at a TV/AC and hold a
+   real remote: while jamming, the remote should **fail to control** the device (or be
+   significantly degraded) at close range.
+2. Repeat with **Sweep 30-56kHz** — should jam remotes on other carriers (some ACs use
+   36/40/56 kHz). The on-screen Freq readout sweeps.
+3. **BACK** exits the jammer promptly in both modes; carrier stops (remote works again
+   immediately after exit).
+4. **Effectiveness caveat:** this is an HW-power question. If a remote still works at any
+   useful distance, the IR LED is likely too weak — tell me and the fallback is to
+   flag-hide the IR jammer entirely (per plan). Best results: close range, LED aimed at the
+   target's IR receiver window.
+
+**Pass:** at close range the jammer blocks/degrades a real remote in at least Carrier mode;
+BACK cancels cleanly.
