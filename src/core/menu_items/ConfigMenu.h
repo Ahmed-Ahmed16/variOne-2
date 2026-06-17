@@ -18,6 +18,7 @@ private:
     void ledMenu(void);
     void audioMenu(void);
     void systemMenu(void);
+    void aiDebriefMenu(void);
     void advancedMenu(void);
     void powerMenu(void);
     void devMenu(void);

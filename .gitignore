@@ -19,3 +19,6 @@ docker-logs
 lib/mquickjs_headers/mqjs_stdlib_generator
 lib/mquickjs_headers/mqjs_stdlib_generator.exe
 .github/agents/Bruce-AI.agent.md
+
+# VariOne local secrets (WiFi creds + Gemini key) — never commit
+src/modules/varione/varione_secrets.h

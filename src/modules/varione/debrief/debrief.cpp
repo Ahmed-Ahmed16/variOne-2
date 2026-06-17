@@ -4,6 +4,7 @@
  * the SoftAP + DNS + AsyncWebServer stack, and the project QR lib for the join QR.
  */
 #include "debrief.h"
+#include "ai_debrief.h"
 #include "core/display.h"
 #include "core/mykeyboard.h"
 #include "core/sd_functions.h"
@@ -34,6 +35,7 @@ static String attackTitle(DebriefType t) {
         case DEBRIEF_DEAUTH: return "Wi-Fi Deauthentication Attack";
         case DEBRIEF_BEACON: return "Wi-Fi Beacon Spam";
         case DEBRIEF_EVIL_PORTAL: return "Evil Portal (Cloned AP + Captive Portal)";
+        case DEBRIEF_BADUSB: return "USB HID Injection (BadUSB)";
     }
     return "Wi-Fi Attack";
 }
@@ -50,6 +52,10 @@ static String lessonWhat(DebriefType t) {
         case DEBRIEF_EVIL_PORTAL:
             return "The device cloned an open access point and served a captive login page. "
                    "Any credentials a victim typed were captured locally.";
+        case DEBRIEF_BADUSB:
+            return "The device enumerated as an ordinary USB keyboard and, the moment it was "
+                   "plugged in, typed a scripted sequence of keystrokes into the host by itself "
+                   "at machine speed. No software exploit was used — just automated typing.";
     }
     return "";
 }
@@ -68,6 +74,11 @@ static String lessonWhy(DebriefType t) {
             return "Users trust a familiar SSID name and a convincing login page. An open AP "
                    "needs no server authentication, so the victim has no way to verify the "
                    "portal is legitimate before typing credentials.";
+        case DEBRIEF_BADUSB:
+            return "Computers trust any USB keyboard implicitly — HID input has no "
+                   "authentication. A device that claims to be a keyboard can issue commands "
+                   "the instant it is connected, faster than a human and without any consent "
+                   "prompt, as long as the session is unlocked.";
     }
     return "";
 }
@@ -87,6 +98,11 @@ static String lessonMitigations(DebriefType t) {
                    "<li>Require HTTPS with certificate validation; watch for cert warnings.</li>"
                    "<li>Enable 2FA so captured passwords are not enough.</li>"
                    "<li>Prefer WPA2/WPA3-Enterprise over open Wi-Fi.</li>";
+        case DEBRIEF_BADUSB:
+            return "<li>Never plug in unknown or found USB devices.</li>"
+                   "<li>Lock the screen whenever you step away — injection needs an unlocked session.</li>"
+                   "<li>Use USB device control / HID allowlisting (USBGuard, group policy) to block new keyboards.</li>"
+                   "<li>Disable USB ports you do not use; prefer data-blocker cables for charging.</li>";
     }
     return "";
 }
@@ -102,6 +118,9 @@ static String lessonReplicate(DebriefType t) {
         case DEBRIEF_EVIL_PORTAL:
             return "Clone the target SSID, serve the portal, optionally deauth to push clients "
                    "over, and review the captured submissions on the device.";
+        case DEBRIEF_BADUSB:
+            return "Write a Ducky/BadUSB script, load it on the device, and run it against an "
+                   "authorized, unlocked test machine; watch it type the payload on its own.";
     }
     return "";
 }
@@ -147,13 +166,43 @@ static String dynamicInsight(const DebriefFacts &f) {
             else s += "No clients joined this run; in an authorized test, a deauth nudge pushes them over.";
             return s;
         }
+        case DEBRIEF_BADUSB: {
+            String s = "In " + String(f.durationS) +
+                       " s the device typed a full keystroke payload into the host at machine "
+                       "speed — no click, no confirmation, faster than any human. ";
+            s += "In that same window a real payload could open a shell, pull files, or install "
+                 "persistence. The only thing it needed was an unlocked, trusting USB port.";
+            return s;
+        }
     }
     return "";
 }
 
 // ---- report builder -------------------------------------------------------
 
-static String buildReportHtml(const DebriefFacts &f) {
+// Escape AI text for safe embedding in the report body, and turn blank lines /
+// newlines into paragraph breaks. The AI output is plain prose (we ask for no
+// markup), but we never trust it raw.
+static String htmlEscapeAi(const String &in) {
+    String out;
+    out.reserve(in.length() + 32);
+    for (size_t i = 0; i < in.length(); i++) {
+        char c = in[i];
+        switch (c) {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '\n': out += "<br>"; break;
+            case '\r': break;
+            default: out += c;
+        }
+    }
+    return out;
+}
+
+// aiText is optional: when non-empty an "AI analysis" section is rendered. The
+// canned What/Why/Mitigations stays as the reliable backbone + offline fallback.
+static String buildReportHtml(const DebriefFacts &f, const String &aiText = "") {
     String title = attackTitle(f.type);
     String h;
     h.reserve(4096);
@@ -182,18 +231,28 @@ static String buildReportHtml(const DebriefFacts &f) {
         h += "<tr><td>Credentials captured</td><td>" + String(f.creds) + "</td></tr>";
     } else if (f.type == DEBRIEF_DEAUTH) {
         h += "<tr><td>Frames sent</td><td>" + String(f.frames) + "</td></tr>";
+    } else if (f.type == DEBRIEF_BADUSB) {
+        h += "<tr><td>Vector</td><td>USB keyboard (HID)</td></tr>";
     }
     h += "<tr><td>Duration</td><td>" + String(f.durationS) + " s</td></tr>";
     h += "</table>";
 
     h += "<h2>Session insight</h2><p>" + dynamicInsight(f) + "</p>";
+    if (!aiText.isEmpty()) {
+        h += "<h2>AI analysis</h2><p>" + htmlEscapeAi(aiText) + "</p>";
+    }
     h += "<h2>What happened</h2><p>" + lessonWhat(f.type) + "</p>";
     h += "<h2>Why it works</h2><p>" + lessonWhy(f.type) + "</p>";
     h += "<h2>Mitigations</h2><ul>" + lessonMitigations(f.type) + "</ul>";
     h += "<h2>Replicate (authorized testing)</h2><p>" + lessonReplicate(f.type) + "</p>";
 
-    h += "<div class='foot'>Generated on-device by VariOne. Authorized lab/demo use only. "
-         "(Lesson content is templated; the session insight is generated from your capture.)</div>";
+    h += "<div class='foot'>Generated on-device by VariOne. Authorized lab/demo use only. ";
+    if (!aiText.isEmpty())
+        h += "(The AI analysis was generated by Gemini from aggregate session facts only — no "
+             "captured data left the device. Lesson content is templated.)";
+    else
+        h += "(Lesson content is templated; the session insight is generated from your capture.)";
+    h += "</div>";
     h += "</div></body></html>";
     return h;
 }
@@ -317,6 +376,17 @@ void debriefArmBeacon(const String &mode, uint32_t durationS) {
     g_pendingValid = true;
 }
 
+void debriefArmBadUSB(const String &scriptName, uint32_t durationS) {
+    g_pending = DebriefFacts{};
+    g_pending.type = DEBRIEF_BADUSB;
+    // Show just the file name, not the full SD path.
+    int slash = scriptName.lastIndexOf('/');
+    g_pending.target = slash >= 0 ? scriptName.substring(slash + 1) : scriptName;
+    if (g_pending.target.isEmpty()) g_pending.target = "BadUSB script";
+    g_pending.durationS = durationS;
+    g_pendingValid = true;
+}
+
 void debriefRunPending() {
     if (!g_pendingValid) return;
     g_pendingValid = false;
@@ -338,7 +408,26 @@ void runDebrief(const DebriefFacts &facts) {
     options.clear();
     if (!want) return;
 
-    s_report = buildReportHtml(facts);
+    // ── Phase 1 (STA): fetch the AI narrative, if AI debrief is enabled ──────
+    // Two-phase by design: STA for internet now, AP for serving later. Never
+    // AP+STA at once. Any failure here leaves aiText empty → canned fallback.
+    String aiText;
+    if (bruceConfig.aiDebriefEnabled) {
+        displayTextLine("Connecting WiFi for AI...");
+        if (wifiConnecttoKnownNet()) {
+            displayTextLine("Asking Gemini...");
+            aiText = aiGenerateDebrief(facts);
+        } else {
+            Serial.println("[DEBRIEF] no known WiFi — offline debrief");
+            displayTextLine("No internet - offline debrief");
+            delay(800);
+        }
+        wifiDisconnect(); // tear STA fully down before the AP phase
+        delay(300);
+    }
+
+    // ── Phase 2 (AP): build report (aiText optional) and serve over SoftAP ───
+    s_report = buildReportHtml(facts, aiText);
     saveSessionToSd(facts);
 
     displayTextLine("Starting Debrief AP...");

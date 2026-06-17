@@ -38,6 +38,38 @@ static bool mdnsRunning = false;
 static bool s_webRoutesRegistered = false;  // WebUI app routes added once
 static volatile bool s_debriefActive = false; // gates the debrief responses
 static String s_debriefHtml;                // current debrief report HTML
+static volatile bool s_aiSetupActive = false; // gates the AI-setup provisioning form
+
+// AI Setup provisioning form (plan Part C). Served from the SAME shared port-80
+// server (never a second listener). POST saves WiFi creds + Gemini key into
+// bruceConfig and persists, so the 39-char key is typed on a phone, not the OSK.
+static const char *AI_SETUP_FORM =
+    "<!doctype html><html><head><meta charset='utf-8'>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>VariOne AI Setup</title><style>"
+    "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0f1115;color:#e8eaed}"
+    ".wrap{max-width:480px;margin:0 auto;padding:18px}h1{font-size:20px;color:#4ea1ff}"
+    "label{display:block;margin:12px 0 4px;font-size:14px;color:#9ad}"
+    "input{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #2c3650;"
+    "background:#1d2330;color:#e8eaed;font-size:15px}"
+    "button{margin-top:18px;width:100%;padding:12px;border:0;border-radius:8px;background:#4ea1ff;"
+    "color:#06121f;font-size:16px;font-weight:600}"
+    ".note{margin-top:14px;font-size:12px;color:#6b7280;line-height:1.5}"
+    "</style></head><body><div class='wrap'><h1>VariOne AI Setup</h1>"
+    "<form method='POST' action='/aisetup'>"
+    "<label>Home WiFi name (SSID)</label><input name='ssid' autocomplete='off'>"
+    "<label>WiFi password</label><input name='pwd' type='password' autocomplete='off'>"
+    "<label>Gemini API key</label><input name='key' autocomplete='off'>"
+    "<label>Local AI endpoint (optional)</label>"
+    "<input name='endpoint' autocomplete='off' placeholder='http://192.168.0.50:8000/'>"
+    "<label><input type='checkbox' name='enable' value='1' style='width:auto;margin-right:6px'>"
+    "Enable AI debrief</label>"
+    "<button type='submit'>Save</button></form>"
+    "<div class='note'>Leave the endpoint blank to use the cloud (Gemini over HTTPS). Set it to a "
+    "LAN proxy URL to route via plain HTTP instead (no on-device TLS). "
+    "The WiFi pair is saved for STA auto-connect; the key is stored on-device only. "
+    "Only aggregate attack facts (counts/duration/SSID) are ever sent to Gemini &mdash; never "
+    "credentials, captures or card numbers.</div></div></body></html>";
 
 // Generate random token
 String generateToken(int length = 24) {
@@ -352,12 +384,12 @@ void serveWebUIFile(
     AsyncWebServerResponse *response = nullptr;
     FS *fs = NULL;
     if (setupSdCard()) {
-        if (SD.exists("/BruceWebUI/" + filename)) fs = &SD;
-    } else if (LittleFS.exists("/BruceWebUI/" + filename)) {
+        if (SD.exists("/VariWebUI/" + filename)) fs = &SD;
+    } else if (LittleFS.exists("/VariWebUI/" + filename)) {
         fs = &LittleFS;
     }
     if (fs) {
-        response = request->beginResponse(*fs, "/BruceWebUI/" + filename, contentType);
+        response = request->beginResponse(*fs, "/VariWebUI/" + filename, contentType);
     } else {
         if (filename == "theme.css") {
             String css = ":root{--color:" + color565ToWebHex(bruceConfig.priColor) +
@@ -411,14 +443,24 @@ static void sharedNotFound(AsyncWebServerRequest *request) {
         request->send(200, "text/html", s_debriefHtml);
         return;
     }
+    if (s_aiSetupActive) {
+        request->send(200, "text/html", AI_SETUP_FORM);
+        return;
+    }
     notFound(request);
 }
 
-// OS captive-portal probes: bounce to /debrief during a debrief, else 404.
+// OS captive-portal probes: bounce to the active captive page, else 404.
 static void captiveProbe(AsyncWebServerRequest *request) {
     if (s_debriefActive) {
         AsyncWebServerResponse *r = request->beginResponse(302);
         r->addHeader("Location", "http://192.168.4.1/debrief");
+        request->send(r);
+        return;
+    }
+    if (s_aiSetupActive) {
+        AsyncWebServerResponse *r = request->beginResponse(302);
+        r->addHeader("Location", "http://192.168.4.1/aisetup");
         request->send(r);
         return;
     }
@@ -449,6 +491,38 @@ void ensureWebServer() {
     server->on("/hotspot-detect.html", HTTP_GET, captiveProbe);
     server->on("/redirect", HTTP_GET, captiveProbe);
     server->on("/ncsi.txt", HTTP_GET, captiveProbe);
+
+    // AI Setup provisioning form (plan Part C) on the shared server.
+    server->on("/aisetup", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", AI_SETUP_FORM);
+    });
+    server->on("/aisetup", HTTP_POST, [](AsyncWebServerRequest *request) {
+        String ssid = request->hasParam("ssid", true) ? request->getParam("ssid", true)->value() : "";
+        String pwd = request->hasParam("pwd", true) ? request->getParam("pwd", true)->value() : "";
+        String key = request->hasParam("key", true) ? request->getParam("key", true)->value() : "";
+        String endpoint =
+            request->hasParam("endpoint", true) ? request->getParam("endpoint", true)->value() : "";
+        bool enable = request->hasParam("enable", true);
+
+        if (ssid.length()) bruceConfig.addWifiCredential(ssid, pwd);
+        if (key.length()) bruceConfig.setGeminiApiKey(key);
+        endpoint.trim();
+        bruceConfig.setAiEndpoint(endpoint); // empty = cloud; set = local LAN
+        bruceConfig.setAiDebriefEnabled(enable ? 1 : 0);
+
+        Serial.printf(
+            "[AISETUP] saved ssid=%s keylen=%d endpoint=%s enable=%d\n", ssid.c_str(), (int)key.length(),
+            endpoint.c_str(), enable ? 1 : 0
+        );
+        request->send(
+            200, "text/html",
+            "<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<body style='font-family:sans-serif;background:#0f1115;color:#e8eaed;padding:24px'>"
+            "<h2 style='color:#4ea1ff'>Saved.</h2><p>WiFi + AI settings stored on the device. "
+            "You can disconnect and run a debrief.</p></body>"
+        );
+    });
+
     server->onNotFound(sharedNotFound);
 
     server->begin();
@@ -469,6 +543,18 @@ void webDebriefEnd() {
     s_debriefActive = false;
     s_debriefHtml = "";
 }
+
+/**********************************************************************
+**  Function: webAiSetupBegin / webAiSetupEnd
+**  Arm/disarm the AI Setup provisioning form (captive page) on the shared
+**  server. The caller raises the SoftAP + DNS (see runAiSetupPortal).
+**********************************************************************/
+void webAiSetupBegin() {
+    s_aiSetupActive = true;
+    ensureWebServer();
+}
+
+void webAiSetupEnd() { s_aiSetupActive = false; }
 
 /**********************************************************************
 **  configure web server

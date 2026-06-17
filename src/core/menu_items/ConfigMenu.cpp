@@ -5,10 +5,97 @@
 #include "core/settings.h"
 #include "core/utils.h"
 #include "core/wifi/wifi_common.h"
+#include "core/wifi/webInterface.h"
+#include "modules/varione/debrief/ai_debrief.h"
 #include "../mykeyboard.h"
+#include <DNSServer.h>
+#include <WiFi.h>
+#include <esp_wifi.h>
+#include <qrcode.h>
 #ifdef HAS_RGB_LED
 #include "core/led_control.h"
 #endif
+
+/*********************************************************************
+**  Function: runAiSetupPortal
+**  Raise the VariOne SoftAP (open) + catch-all DNS and serve the AI Setup
+**  provisioning form (plan Part C) until BACK. Mirrors the proven debrief AP
+**  flow (serveReportLoop) so it broadcasts and accepts joins reliably. The form
+**  itself lives on the single shared port-80 server (webAiSetupBegin/End).
+**********************************************************************/
+static void runAiSetupPortal() {
+    esp_wifi_set_promiscuous(false);
+    wifiDisconnect(); // clean teardown -> same state "Start WiFi AP" reaches
+    delay(400);
+
+    // Force the AP OPEN so the one-scan join can never fail on auth (restore the
+    // configured AP password afterwards, in memory only).
+    String savedPwd = bruceConfig.wifiAp.pwd;
+    bruceConfig.wifiAp.pwd = "";
+    bool ok = _setupAP();
+    bruceConfig.wifiAp.pwd = savedPwd;
+    if (!ok) {
+        displayError("AI Setup AP failed");
+        delay(1500);
+        return;
+    }
+    IPAddress apIP = WiFi.softAPIP();
+    String apSsid = bruceConfig.wifiAp.ssid;
+    if (apSsid.isEmpty()) apSsid = "VariOne";
+
+    static DNSServer dns;
+    dns.start(53, "*", apIP);
+    webAiSetupBegin(); // arm /aisetup on the shared server
+
+#ifdef HAS_SCREEN
+    QRcode qrcode(&tft);
+    qrcode.init();
+    qrcode.create(String("WIFI:T:nopass;S:") + apSsid + ";;");
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+    tft.setTextSize(1);
+    tft.setCursor(2, tftHeight - 8);
+    tft.print("Join " + apSsid + " -> aisetup");
+#endif
+    Serial.println("[AISETUP] AP '" + apSsid + "' up at " + apIP.toString());
+
+    // Drain any held/bouncing BACK for ~800 ms so it can't tear the AP down
+    // immediately, then serve until BACK.
+    uint32_t drainEnd = millis() + 800;
+    while (millis() < drainEnd) {
+        check(EscPress);
+        delay(20);
+    }
+    while (!check(EscPress)) {
+        dns.processNextRequest();
+        delay(5);
+    }
+
+    webAiSetupEnd();
+    dns.stop();
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_OFF);
+#ifdef HAS_SCREEN
+    tft.fillScreen(bruceConfig.bgColor);
+#endif
+}
+
+/*********************************************************************
+**  Function: aiDebriefMenu
+**  Toggle AI debrief + open the web provisioning form (plan Part C/B).
+**********************************************************************/
+void ConfigMenu::aiDebriefMenu() {
+    while (true) {
+        std::vector<Option> localOptions = {
+            {String("AI Debrief: ") + (bruceConfig.aiDebriefEnabled ? "ON" : "OFF"),
+             []() { bruceConfig.setAiDebriefEnabled(!bruceConfig.aiDebriefEnabled); }},
+            {"AI Setup (web form)",  []() { runAiSetupPortal(); }                     },
+            {"Test Gemini (serial)", []() { aiDebriefSmokeTest(); }                   },
+            {"Back",                 []() {}                                          },
+        };
+        int selected = loopOptions(localOptions, MENU_TYPE_SUBMENU, "AI Debrief");
+        if (selected == -1 || selected == localOptions.size() - 1) { return; }
+    }
+}
 
 /*********************************************************************
 **  Function: optionsMenu
@@ -173,6 +260,7 @@ void ConfigMenu::systemMenu() {
             {"Hide/Show Apps",                                                      [this]() { mainMenu.hideAppsMenu(); }},
             {"Clock",                                                               [this]() { setClock(); }             },
             {String("Keyboard Language: ") + bruceConfig.keyboardLang,             [this]() { setKeyboardLanguage(); }  },
+            {"AI Debrief",                                                          [this]() { aiDebriefMenu(); }        },
             {"Advanced",                                                            [this]() { advancedMenu(); }         },
             {"Back",                                                                []() {}                              },
         };

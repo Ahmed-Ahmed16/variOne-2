@@ -10,7 +10,7 @@
 
 #include <Arduino.h>
 
-enum DebriefType { DEBRIEF_DEAUTH, DEBRIEF_BEACON, DEBRIEF_EVIL_PORTAL };
+enum DebriefType { DEBRIEF_DEAUTH, DEBRIEF_BEACON, DEBRIEF_EVIL_PORTAL, DEBRIEF_BADUSB };
 
 // Plain facts captured by an attack. Each attack fills this at its exit and
 // passes it to runDebrief(); no globals, no hot-loop hooks.
@@ -37,6 +37,10 @@ void runDebrief(const DebriefFacts &facts);
 // from the menu, once the attack's stack has unwound.
 void debriefArmDeauthFlood(uint32_t frames, uint32_t durationS, int apCount);
 void debriefArmBeacon(const String &mode, uint32_t durationS);
+// BadUSB/HID injection: scriptName is the file that ran; durationS how long it
+// typed. Unified across every script — the lesson is about HID trust, not the
+// specific payload.
+void debriefArmBadUSB(const String &scriptName, uint32_t durationS);
 void debriefRunPending();
 
 #endif // VARIONE_DEBRIEF_H

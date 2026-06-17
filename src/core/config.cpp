@@ -2,6 +2,12 @@
 #include "mifare_keys_manager.h"
 #include "sd_functions.h"
 
+// Optional, gitignored seed file (WiFi creds + Gemini key). Build works without it.
+#if __has_include("../modules/varione/varione_secrets.h")
+#include "../modules/varione/varione_secrets.h"
+#define VARIONE_HAS_SECRETS 1
+#endif
+
 JsonDocument BruceConfig::toJson() const {
     JsonDocument jsonDoc;
     JsonObject setting = jsonDoc.to<JsonObject>();
@@ -62,6 +68,9 @@ JsonDocument BruceConfig::toJson() const {
     setting["startupApp"] = startupApp;
     setting["startupAppJSInterpreterFile"] = startupAppJSInterpreterFile;
     setting["wigleBasicToken"] = wigleBasicToken;
+    setting["geminiApiKey"] = geminiApiKey;
+    setting["aiDebriefEnabled"] = aiDebriefEnabled;
+    setting["aiEndpoint"] = aiEndpoint;
     setting["devMode"] = devMode;
     setting["colorInverted"] = colorInverted;
 
@@ -96,6 +105,7 @@ void BruceConfig::fromFile(bool checkFS) {
 
     if (!fs->exists(filepath)) {
         log_i("Config file not found. Creating default config");
+        seedFromVarioneSecrets();
         return saveFile();
     }
 
@@ -353,6 +363,24 @@ void BruceConfig::fromFile(bool checkFS) {
         count++;
         log_e("Fail");
     }
+    if (!setting["geminiApiKey"].isNull()) {
+        geminiApiKey = setting["geminiApiKey"].as<String>();
+    } else {
+        count++;
+        log_e("Fail");
+    }
+    if (!setting["aiDebriefEnabled"].isNull()) {
+        aiDebriefEnabled = setting["aiDebriefEnabled"].as<int>();
+    } else {
+        count++;
+        log_e("Fail");
+    }
+    if (!setting["aiEndpoint"].isNull()) {
+        aiEndpoint = setting["aiEndpoint"].as<String>();
+    } else {
+        count++;
+        log_e("Fail");
+    }
     if (!setting["devMode"].isNull()) {
         devMode = setting["devMode"].as<int>();
     } else {
@@ -410,6 +438,7 @@ void BruceConfig::fromFile(bool checkFS) {
     }
 
     validateConfig();
+    seedFromVarioneSecrets();
     if (count > 0) saveFile();
 
     // Load MIFARE keys (loading via manager)
@@ -721,6 +750,56 @@ void BruceConfig::setStartupAppJSInterpreterFile(String value) {
 void BruceConfig::setWigleBasicToken(String value) {
     wigleBasicToken = value;
     saveFile();
+}
+
+void BruceConfig::setGeminiApiKey(String value) {
+    geminiApiKey = value;
+    saveFile();
+}
+
+void BruceConfig::setAiDebriefEnabled(int value) {
+    aiDebriefEnabled = value ? 1 : 0;
+    saveFile();
+}
+
+void BruceConfig::setAiEndpoint(String value) {
+    aiEndpoint = value;
+    saveFile();
+}
+
+// Seed WiFi creds + Gemini key from the gitignored varione_secrets.h, if present,
+// so nothing sensitive has to be typed on the device. Only fills BLANK/missing
+// entries — never overwrites values the user already provisioned.
+void BruceConfig::seedFromVarioneSecrets() {
+#ifdef VARIONE_HAS_SECRETS
+    bool dirty = false;
+#if defined(VARIONE_WIFI_SSID) && defined(VARIONE_WIFI_PASS)
+    if (strlen(VARIONE_WIFI_SSID) > 0 && wifi.find(VARIONE_WIFI_SSID) == wifi.end()) {
+        wifi[VARIONE_WIFI_SSID] = VARIONE_WIFI_PASS;
+        dirty = true;
+    }
+#endif
+#if defined(VARIONE_WIFI_NETS)
+    // Backup networks: list of {ssid, pass} pairs. Seeds any not already saved.
+    static const struct {
+        const char *ssid;
+        const char *pass;
+    } _varioneNets[] = VARIONE_WIFI_NETS;
+    for (const auto &n : _varioneNets) {
+        if (strlen(n.ssid) > 0 && wifi.find(n.ssid) == wifi.end()) {
+            wifi[n.ssid] = n.pass;
+            dirty = true;
+        }
+    }
+#endif
+#if defined(VARIONE_GEMINI_KEY)
+    if (geminiApiKey.isEmpty() && strlen(VARIONE_GEMINI_KEY) > 0) {
+        geminiApiKey = VARIONE_GEMINI_KEY;
+        dirty = true;
+    }
+#endif
+    if (dirty) saveFile();
+#endif // VARIONE_HAS_SECRETS
 }
 
 void BruceConfig::setDevMode(int value) {

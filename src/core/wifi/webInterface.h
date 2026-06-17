@@ -32,3 +32,7 @@ void ensureWebServer();
 // probes) until webDebriefEnd().
 void webDebriefBegin(const String &html);
 void webDebriefEnd();
+
+// Arm/disarm the AI Setup provisioning form on the shared server (plan Part C).
+void webAiSetupBegin();
+void webAiSetupEnd();

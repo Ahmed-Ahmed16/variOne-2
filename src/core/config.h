@@ -82,6 +82,10 @@ public:
     String startupApp = "";
     String startupAppJSInterpreterFile = "";
     String wigleBasicToken = "";
+    // VariOne AI debrief (Gemini) — see src/modules/varione/debrief/ai_debrief.*
+    String geminiApiKey = "";    // AI Studio key
+    int aiDebriefEnabled = 0;    // master toggle (opt-in cloud egress)
+    String aiEndpoint = "";      // empty = Gemini cloud; else local LAN URL (deferred)
     int devMode = 0;
     int colorInverted = 1;
     int badUSBBLEKeyboardLayout = 0;
@@ -91,10 +95,8 @@ public:
     std::vector<String> disabledMenus = {};
 
     std::vector<QrCodeEntry> qrCodes = {
-        {"VariOne AP", "WIFI:T:WPA;S:VariOne;P:varione1;;"  },
-        {"Bruce Wiki", "https://github.com/pr3y/Bruce/wiki"},
-        {"Bruce Site", "https://bruce.computer"            },
-        {"Rickroll",   "https://youtu.be/dQw4w9WgXcQ"      }
+        {"VariOne AP", "WIFI:T:WPA;S:VariOne;P:varione1;;"},
+        {"Rickroll",   "https://youtu.be/dQw4w9WgXcQ"     }
     };
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -175,6 +177,10 @@ public:
     void setStartupApp(String value);
     void setStartupAppJSInterpreterFile(String value);
     void setWigleBasicToken(String value);
+    void setGeminiApiKey(String value);
+    void setAiDebriefEnabled(int value);
+    void setAiEndpoint(String value);
+    void seedFromVarioneSecrets();
     void setDevMode(int value);
     void validateDevModeValue();
     void setColorInverted(int value);
