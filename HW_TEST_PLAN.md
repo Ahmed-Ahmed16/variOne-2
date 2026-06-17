@@ -33,3 +33,26 @@ _Note (not a code change this batch):_ other `while(!check(EscPress))` loops
 they poll every iteration with no long blocking call between checks, so BACK already
 works. If any one feels sticky on HW, report it and I'll apply the same cancellable
 pattern.
+
+---
+
+## Batch 2 — Menu declutter + Mount Storage
+
+**What changed:** main-menu items `JS Interpreter`, `Apps`, `Clock`, `Connect` hidden via
+`isBoardHiddenMenu()` (gated by existing `VARIONE_HIDE_UNSUPPORTED_MENUS`). Submenu
+`Audio Config` (Config menu) and `Ninebot` (BLE menu) hidden behind new board flags
+`VARIONE_HIDE_AUDIO_CONFIG` / `VARIONE_HIDE_NINEBOT`. `Mass Storage` label → `Mount Storage`
+(menu entry + in-screen title).
+
+1. **Main menu:** scroll the whole main menu — `JS Interpreter`, `Apps`, `Clock`, `Connect`
+   are **gone**. WiFi/BLE/RF/RFID/IR/Files/NRF/Others still present.
+2. **Hide/Show Apps:** Settings → (Display/System) → Hide/Show Apps list — the same 4 are
+   absent there too (can't be re-shown by accident).
+3. **Config menu:** open Config → `Audio Config` is **gone**; `Display & UI`, `System
+   Config`, `Power` remain.
+4. **BLE menu:** open BLE → `Ninebot` is **gone**; `BLE Scan`, `BLE Spam`, `BLE Suite`
+   remain.
+5. **Mount Storage:** Files menu shows `Mount Storage` (not "Mass Storage"); entering it
+   shows title "Mount Storage" and the SD still mounts as a USB drive on a PC.
+
+**Pass:** all 6 items hidden/renamed as above; nothing else missing; storage still works.

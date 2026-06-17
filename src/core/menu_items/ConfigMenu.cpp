@@ -28,7 +28,9 @@ void ConfigMenu::optionsMenu() {
 #ifdef HAS_RGB_LED
             {"LED Config",    [this]() { ledMenu(); }      },
 #endif
+#if !defined(VARIONE_HIDE_AUDIO_CONFIG)
             {"Audio Config",  [this]() { audioMenu(); }    },
+#endif
             {"System Config", [this]() { systemMenu(); }   },
             {"Power",         [this]() { powerMenu(); }    },
         };

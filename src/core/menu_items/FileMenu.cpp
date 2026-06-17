@@ -12,7 +12,7 @@ void FileMenu::optionsMenu() {
     options.push_back({"WebUI", loopOptionsWebUi});
 
 #if defined(SOC_USB_OTG_SUPPORTED)
-    options.push_back({"Mass Storage", [=]() { MassStorage(); }});
+    options.push_back({"Mount Storage", [=]() { MassStorage(); }});
 #endif
     addOptionToMainMenu();
 

@@ -40,7 +40,9 @@ void BleMenu::optionsMenu() {
 
 #if !defined(LITE_VERSION)
     options.push_back({"BLE Suite", [=]() { BleSuiteMenu(); }});
+#if !defined(VARIONE_HIDE_NINEBOT)
     options.push_back({"Ninebot", [=]() { BLENinebot(); }});
+#endif
 #endif
     addOptionToMainMenu();
 

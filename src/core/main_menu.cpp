@@ -5,7 +5,9 @@
 
 static bool isBoardHiddenMenu(const String &itemName) {
 #if defined(VARIONE_HIDE_UNSUPPORTED_MENUS)
-    return itemName == "Ethernet" || itemName == "GPS" || itemName == "LoRa" || itemName == "FM";
+    return itemName == "Ethernet" || itemName == "GPS" || itemName == "LoRa" || itemName == "FM" ||
+           itemName == "JS Interpreter" || itemName == "Apps" || itemName == "Clock" ||
+           itemName == "Connect";
 #else
     return false;
 #endif

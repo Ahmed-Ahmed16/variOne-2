@@ -79,7 +79,7 @@ void MassStorage::setupUsbEvent() {
 }
 
 void MassStorage::displayMessage(String message) {
-    drawMainBorderWithTitle("Mass Storage");
+    drawMainBorderWithTitle("Mount Storage");
     padprintln("");
     padprintln(message);
 }

@@ -50,8 +50,8 @@ For each batch:
 
 | # | Batch | Status | Commit | Build (vari/stock) | HW |
 |---|-------|--------|--------|--------------------|----|
-| 1 | Critical BACK fix + logo reverts | ✅ done+built | _local_ | ✅/✅ | — |
-| 2 | Menu declutter (hides) + Mount Storage | ☐ todo | — | — | — |
+| 1 | Critical BACK fix + logo reverts | ✅ done+built | 3b94c03 | ✅/✅ | — |
+| 2 | Menu declutter (hides) + Mount Storage | ✅ done+built | 2fb3c71 | ✅/✅ | — |
 | 3 | IR jammer fix | ☐ todo | — | — | — |
 | 4 | WiFi hides + keep capture→crack | ☐ todo | — | — | — |
 | 5 | BLE hides + rename | ☐ todo | — | — | — |
