@@ -111,3 +111,42 @@ Full owner verify checklist lives in that README. Quick version:
 > Note: these are SD-card data files — no firmware rebuild needed. The picker browses from
 > card root, so navigate into `BadUSB and BlueDucky/`. Scripts are Windows (`GUI r`); add a
 > Linux/macOS launcher line if the demo PC needs it.
+
+---
+
+## Batches 4 / 5 / 6 / 8 — WiFi / BLE / NRF / RFID declutter (commit 1ecc44d)
+
+All reversible compile-flag hides. Flip the flag off in `boards/varione-s3/varione-s3.ini`
+to bring any group back.
+
+### Batch 4 — WiFi menu
+1. Open **WiFi**. These are **gone**: Listen TCP, Client TCP, SOCKS4 Proxy, TelNET, SSH,
+   Wireguard, Responder, VariGotchi.
+2. Still present: **Wifi Atks**, **Evil Portal**, **Sniffer**, **Scan Hosts**,
+   **WiFi Pass Recovery**, Connect/Start AP, Config.
+3. **Capture→crack regression:** Wifi Atks → Target → Capture Handshake still works;
+   WiFi Pass Recovery still opens (offline crack). This is the headline demo chain — must
+   survive.
+
+### Batch 5 — BLE menu
+1. Open **BLE**. Gone: Media Cmds, iBeacon, Bad BLE, BLE Keyboard, Ninebot.
+2. Present + renamed: **BLE Scan**, **BLE Popup Spam** (was "BLE Spam"),
+   **BLE Attack Suite** (was "BLE Suite").
+
+### Batch 6 — NRF24 menu + jammer
+1. Open **NRF24**. **MouseJack** entry gone; Information, Spectrum, NRF Jammer present.
+2. Open **NRF Jammer** submenu. Modes shown: **Full Spectrum**, **WiFi 2.4 (Degrade)**,
+   **BLE Link Kill**, **BLE Discovery Kill**, **Bluetooth Kill**, **Wireless Mouse/KB Kill**.
+   Gone: Video/FPV, RC Controllers, Zigbee, Drone FHSS, Single CH, CH Hopper.
+3. Sanity: pick **BLE Link Kill** (or Full Spectrum) → jammer runs; **BACK** cancels.
+   (WiFi label honestly says "Degrade" — it weakens, not a hard block.)
+
+### Batch 8 — RFID menu
+1. Open **RFID**. Gone: Amiibolink, Chameleon, PN532 BLE, PN532 UART.
+2. **Present (must still work on the I2C PN532):** Read tag, Read EMV, Read 125kHz,
+   Scan tags, Load file, Erase data, Write NDEF, SRIX Tool (I2C mode), Config.
+   → Read a real NFC tag to confirm the core reader is intact (we deliberately did NOT set
+   REMOVE_RFID_HW_INTERFACE, which would have removed these).
+
+**Pass (all):** listed items hidden/renamed; kept features (esp. WiFi capture→crack and the
+RFID I2C reads) still function.

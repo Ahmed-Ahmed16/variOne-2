@@ -53,11 +53,11 @@ For each batch:
 | 1 | Critical BACK fix + logo reverts | ✅ done+built | 3b94c03 | ✅/✅ | — |
 | 2 | Menu declutter (hides) + Mount Storage | ✅ done+built | 9f67bde | ✅/✅ | — |
 | 3 | IR jammer fix | ☐ todo | — | — | — |
-| 4 | WiFi hides + keep capture→crack | ☐ todo | — | — | — |
-| 5 | BLE hides + rename | ☐ todo | — | — | — |
-| 6 | NRF jammer rename + hide | ☐ todo | — | — | — |
+| 4 | WiFi hides + keep capture→crack | ✅ done+built | 1ecc44d | ✅/✅ | — |
+| 5 | BLE hides + rename | ✅ done+built | 1ecc44d | ✅/✅ | — |
+| 6 | NRF jammer rename + hide | ✅ done+built | 1ecc44d | ✅/✅ | — |
 | 7 | RF cleanup + all-band scanner | ☐ todo | — | — | — |
-| 8 | RFID cleanup | ☐ todo | — | — | — |
+| 8 | RFID cleanup | ✅ done+built | 1ecc44d | ✅/✅ | — |
 | 9 | Mascot animation (needs owner art) | ☐ todo | — | — | — |
 | 10 | Rebrand Bruce→VariOne + Vemo boot/About | ✅ done+built | 4b2eedd | ✅/✅ | — |
 | 11 | BadUSB verify + demo scripts | ✅ done (SD-data) | 7313592 | n/c (no src) | — |
