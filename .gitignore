@@ -22,3 +22,7 @@ lib/mquickjs_headers/mqjs_stdlib_generator.exe
 
 # VariOne local secrets (WiFi creds + Gemini key) — never commit
 src/modules/varione/varione_secrets.h
+
+# Local Python tooling / AI proxy secrets
+.venv/
+.env.ai_debrief

@@ -89,7 +89,7 @@ void ConfigMenu::aiDebriefMenu() {
             {String("AI Debrief: ") + (bruceConfig.aiDebriefEnabled ? "ON" : "OFF"),
              []() { bruceConfig.setAiDebriefEnabled(!bruceConfig.aiDebriefEnabled); }},
             {"AI Setup (web form)",  []() { runAiSetupPortal(); }                     },
-            {"Test Gemini (serial)", []() { aiDebriefSmokeTest(); }                   },
+            {"Test AI (serial)",     []() { aiDebriefSmokeTest(); }                   },
             {"Back",                 []() {}                                          },
         };
         int selected = loopOptions(localOptions, MENU_TYPE_SUBMENU, "AI Debrief");

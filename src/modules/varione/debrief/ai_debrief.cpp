@@ -11,16 +11,21 @@
 
 // ---- Gemini cloud endpoint -------------------------------------------------
 static const char *GEMINI_HOST = "generativelanguage.googleapis.com";
-static const char *GEMINI_PATH = "/v1beta/models/gemini-2.0-flash:generateContent?key=";
+// Key is sent via the x-goog-api-key header (required by the new "auth keys");
+// the legacy ?key= query param is not used.
+static const char *GEMINI_PATH = "/v1beta/models/gemini-2.0-flash:generateContent";
 
 // Shared system instruction — pins tone for every attack template.
 static const char *SYSTEM_TONE =
-    "You are a wireless-security instructor writing a short post-exercise debrief "
-    "for a student after an AUTHORIZED lab attack. Be concise and factual, focused "
-    "on defensive education. Cover: what happened, why it works at the 802.11 "
-    "protocol level, and concrete mitigations. Use at most 3 short paragraphs, "
-    "plain prose (no markdown, no headings, no bullet symbols). Do not invent "
-    "facts beyond those given.";
+    "You are a friendly security-awareness coach writing a short post-exercise "
+    "debrief for a NON-TECHNICAL audience after an AUTHORIZED lab demo. Explain in "
+    "plain, everyday language what just happened, why the trick worked, and what an "
+    "ordinary person should do to stay safe. Avoid heavy jargon; when a technical "
+    "term is unavoidable, explain it in one short clause. Format the answer as "
+    "clean, simple HTML: a couple of <h3> section headings, <p> paragraphs, "
+    "<strong> for key terms, and one <ul><li> list of practical safety tips. Do "
+    "NOT wrap the output in markdown code fences or a <html>/<body> wrapper. Do not "
+    "invent facts beyond those given.";
 
 // ---- per-attack prompt templates -------------------------------------------
 // Aggregate facts only. No credentials, captures or PANs are ever interpolated.
@@ -32,8 +37,10 @@ static String buildPrompt(const DebriefFacts &f) {
             p += "Attack performed: Wi-Fi deauthentication flood (forged 802.11 "
                  "deauth management frames).\n";
             p += "Target: " + (f.target.isEmpty() ? String("nearby access points") : f.target) + "\n";
+            if (!f.bssid.isEmpty()) p += "Target BSSID (router MAC): " + f.bssid + "\n";
             p += "Channel(s): " + (f.channels.isEmpty() ? String("target channel") : f.channels) + "\n";
             p += "Deauth frames sent: " + String(f.frames) + "\n";
+            if (f.clients > 0) p += "Clients knocked off: " + String(f.clients) + "\n";
             p += "Duration: " + String(f.durationS) + " seconds\n";
             p += "Explain how forged deauth frames knock clients off, why management "
                  "frames are unauthenticated in WPA/WPA2, and how 802.11w/WPA3 and "
@@ -50,8 +57,9 @@ static String buildPrompt(const DebriefFacts &f) {
                  "name alone proves nothing about who runs a network.";
             break;
         case DEBRIEF_EVIL_PORTAL:
-            p += "Attack performed: Evil Portal (cloned open AP + captive login page).\n";
+            p += "Attack performed: VariPortal (cloned open AP + captive login page).\n";
             p += "Cloned SSID: " + (f.target.isEmpty() ? String("a familiar network") : f.target) + "\n";
+            if (!f.bssid.isEmpty()) p += "Rogue AP BSSID (MAC): " + f.bssid + "\n";
             p += "Clients connected: " + String(f.clients) + "\n";
             p += "Credentials captured (count only): " + String(f.creds) + "\n";
             p += "Duration: " + String(f.durationS) + " seconds\n";
@@ -123,7 +131,7 @@ static String geminiCloudGenerate(const String &prompt) {
         (unsigned)ESP.getFreePsram()
     );
 
-    String url = String("https://") + GEMINI_HOST + GEMINI_PATH + bruceConfig.geminiApiKey;
+    String url = String("https://") + GEMINI_HOST + GEMINI_PATH;
 
     String payload;
     int status = -1;
@@ -138,6 +146,7 @@ static String geminiCloudGenerate(const String &prompt) {
             continue;
         }
         https.addHeader("Content-Type", "application/json");
+        https.addHeader("x-goog-api-key", bruceConfig.geminiApiKey);
         status = https.POST(body);
         if (status == 200) {
             payload = https.getString();
@@ -159,6 +168,14 @@ static String geminiCloudGenerate(const String &prompt) {
 // Body sent: {"prompt":"<prompt>"}. Reply parsed by parseAiText (flexible).
 static String localGenerate(const String &prompt) {
     String url = bruceConfig.aiEndpoint;
+    // Normalize the scheme to lowercase — phone keyboards often capitalize it to
+    // "Http://", which HTTPClient::begin() refuses to parse (begin() fails).
+    int sep = url.indexOf("://");
+    if (sep > 0) {
+        String scheme = url.substring(0, sep);
+        scheme.toLowerCase();
+        url = scheme + url.substring(sep);
+    }
     JsonDocument reqDoc;
     reqDoc["prompt"] = prompt;
     String body;

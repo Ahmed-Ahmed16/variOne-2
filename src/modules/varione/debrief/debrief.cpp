@@ -34,7 +34,7 @@ static String attackTitle(DebriefType t) {
     switch (t) {
         case DEBRIEF_DEAUTH: return "Wi-Fi Deauthentication Attack";
         case DEBRIEF_BEACON: return "Wi-Fi Beacon Spam";
-        case DEBRIEF_EVIL_PORTAL: return "Evil Portal (Cloned AP + Captive Portal)";
+        case DEBRIEF_EVIL_PORTAL: return "VariPortal (Cloned AP + Captive Portal)";
         case DEBRIEF_BADUSB: return "USB HID Injection (BadUSB)";
     }
     return "Wi-Fi Attack";
@@ -183,75 +183,191 @@ static String dynamicInsight(const DebriefFacts &f) {
 // Escape AI text for safe embedding in the report body, and turn blank lines /
 // newlines into paragraph breaks. The AI output is plain prose (we ask for no
 // markup), but we never trust it raw.
-static String htmlEscapeAi(const String &in) {
-    String out;
-    out.reserve(in.length() + 32);
-    for (size_t i = 0; i < in.length(); i++) {
-        char c = in[i];
-        switch (c) {
-            case '&': out += "&amp;"; break;
-            case '<': out += "&lt;"; break;
-            case '>': out += "&gt;"; break;
-            case '\n': out += "<br>"; break;
-            case '\r': break;
-            default: out += c;
-        }
+// The AI narrative is now styled HTML (headings/paragraphs/lists) emitted by the
+// model, so we render it as-is rather than escaping it. Source is Gemini over a
+// trusted local AP, but we still neutralize <script>/<style> as defense in depth
+// and strip the markdown code fences models sometimes wrap output in.
+static String sanitizeAiHtml(String s) {
+    s.trim();
+    if (s.startsWith("```")) {               // drop opening ```html / ``` fence line
+        int nl = s.indexOf('\n');
+        if (nl >= 0) s = s.substring(nl + 1);
     }
-    return out;
+    if (s.endsWith("```")) s = s.substring(0, s.length() - 3);
+    s.trim();
+    s.replace("<script", "&lt;script");
+    s.replace("</script", "&lt;/script");
+    s.replace("<style", "&lt;style");
+    s.replace("</style", "&lt;/style");
+    return s;
+}
+
+// Severity badge derived deterministically from the attack type + real facts.
+// label -> human word; cls -> CSS class that colors the pill (sev-crit/high/med).
+static void severityOf(const DebriefFacts &f, String &label, String &cls) {
+    switch (f.type) {
+        case DEBRIEF_DEAUTH:
+            label = "Disruption";
+            cls = "sev-high";
+            break;
+        case DEBRIEF_BEACON:
+            label = "Noise / Spoofing";
+            cls = "sev-med";
+            break;
+        case DEBRIEF_EVIL_PORTAL:
+            label = f.creds > 0 ? "Critical" : "High";
+            cls = f.creds > 0 ? "sev-crit" : "sev-high";
+            break;
+        case DEBRIEF_BADUSB:
+            label = "Critical";
+            cls = "sev-crit";
+            break;
+        default:
+            label = "Info";
+            cls = "sev-med";
+            break;
+    }
+}
+
+// Inline Vemo mascot head as SVG — matches the on-device vector identity (white
+// rounded head, navy bandit mask, cyan eyes + "V" muzzle). Self-contained so the
+// captive-portal report needs no external asset or internet. `s` = px size.
+static String vemoSvg(int s) {
+    String w = String(s);
+    return "<svg width='" + w + "' height='" + w + "' viewBox='0 0 100 100' "
+           "xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>"
+           "<circle cx='22' cy='24' r='13' fill='#192a3a'/><circle cx='22' cy='24' r='6' fill='#fff'/>"
+           "<circle cx='78' cy='24' r='13' fill='#192a3a'/><circle cx='78' cy='24' r='6' fill='#fff'/>"
+           "<rect x='14' y='18' width='72' height='66' rx='20' fill='#fff' stroke='#192a3a' stroke-width='3'/>"
+           "<rect x='20' y='38' width='60' height='22' rx='11' fill='#192a3a'/>"
+           "<circle cx='37' cy='49' r='6' fill='#5fd0ff'/><circle cx='35' cy='47' r='2' fill='#fff'/>"
+           "<circle cx='63' cy='49' r='6' fill='#5fd0ff'/><circle cx='61' cy='47' r='2' fill='#fff'/>"
+           "<path d='M44 66 L50 74 L56 66' fill='none' stroke='#5fd0ff' stroke-width='3' "
+           "stroke-linecap='round' stroke-linejoin='round'/></svg>";
+}
+
+// One session stat as a card: big value on top, small label under it.
+static String statCard(const String &value, const String &label) {
+    return "<div class='stat'><div class='sv'>" + value + "</div><div class='sl'>" + label +
+           "</div></div>";
 }
 
 // aiText is optional: when non-empty an "AI analysis" section is rendered. The
 // canned What/Why/Mitigations stays as the reliable backbone + offline fallback.
 static String buildReportHtml(const DebriefFacts &f, const String &aiText = "") {
     String title = attackTitle(f.type);
+    String sevLabel, sevCls;
+    severityOf(f, sevLabel, sevCls);
+
     String h;
-    h.reserve(4096);
-    h += "<!doctype html><html><head><meta charset='utf-8'>";
+    h.reserve(8192);
+    h += "<!doctype html><html lang='en'><head><meta charset='utf-8'>";
     h += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
     h += "<title>VariOne Debrief</title><style>";
-    h += "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0f1115;color:#e8eaed}";
-    h += ".wrap{max-width:680px;margin:0 auto;padding:18px}";
-    h += "h1{font-size:20px;margin:8px 0;color:#4ea1ff}h2{font-size:16px;margin:18px 0 6px;color:#9ad}";
-    h += ".tag{display:inline-block;background:#1d2330;border:1px solid #2c3650;border-radius:6px;padding:2px 8px;font-size:12px;color:#9fb}";
-    h += "table{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px}";
-    h += "td{padding:6px 8px;border-bottom:1px solid #222a38}td:first-child{color:#8a93a6;width:40%}";
-    h += "p,li{font-size:14px;line-height:1.5}ul{margin:6px 0 6px 18px}";
-    h += ".foot{margin-top:22px;font-size:12px;color:#6b7280}";
+    // --- brand tokens ---
+    h += ":root{--bg:#0a0e13;--panel:#111923;--panel2:#0e151e;--bd:#1d2a39;"
+         "--tx:#e9f1f8;--mut:#8a99ab;--cy:#5fd0ff;--cy2:#2bb7e6;--navy:#192a3a}";
+    h += "*{box-sizing:border-box}";
+    h += "body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,sans-serif;margin:0;"
+         "background:radial-gradient(1200px 600px at 50% -10%,#13202e 0%,var(--bg) 60%);"
+         "color:var(--tx);-webkit-font-smoothing:antialiased}";
+    h += ".wrap{max-width:720px;margin:0 auto;padding:18px 16px 40px}";
+    // header / hero
+    h += ".brand{display:flex;align-items:center;gap:6px;font-weight:700;letter-spacing:.5px;"
+         "font-size:13px;color:var(--mut);text-transform:uppercase}";
+    h += ".brand b{color:var(--cy)}";
+    h += ".hero{display:flex;align-items:center;gap:14px;margin:14px 0 6px}";
+    h += ".hero .vemo{flex:0 0 auto;filter:drop-shadow(0 4px 14px rgba(95,208,255,.25))}";
+    h += "h1{font-size:22px;line-height:1.2;margin:0;font-weight:800}";
+    h += ".pill{display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;"
+         "font-size:12px;font-weight:700;letter-spacing:.4px}";
+    h += ".sev-crit{background:#3a0f17;color:#ff7a90;border:1px solid #5e1b29}";
+    h += ".sev-high{background:#3a2410;color:#ffb15e;border:1px solid #5e3c1b}";
+    h += ".sev-med{background:#11323a;color:#5fe0ff;border:1px solid #1b525e}";
+    // stat grid
+    h += ".stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));"
+         "gap:10px;margin:16px 0}";
+    h += ".stat{background:var(--panel);border:1px solid var(--bd);border-radius:12px;"
+         "padding:12px 14px}";
+    h += ".stat .sv{font-size:20px;font-weight:800;color:var(--cy);word-break:break-word}";
+    h += ".stat .sl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;"
+         "margin-top:3px}";
+    // section cards
+    h += ".card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;"
+         "padding:14px 16px;margin:12px 0}";
+    h += ".card.accent{border-left:4px solid var(--cy)}";
+    h += ".card.insight{background:linear-gradient(180deg,#10222e,var(--panel2));"
+         "border-left:4px solid var(--cy)}";
+    h += ".card.ai{border-left:4px solid #b78cff}";
+    h += ".sec{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"
+         "text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 8px}";
+    h += ".sec .ic{font-size:16px}";
+    h += "p{font-size:15px;line-height:1.55;margin:0}";
+    h += ".card .ai p,.card.ai *{font-size:15px;line-height:1.55}";
+    // mitigation checklist
+    h += "ul.checks{list-style:none;margin:0;padding:0}";
+    h += "ul.checks li{position:relative;padding:7px 0 7px 28px;font-size:15px;line-height:1.5;"
+         "border-bottom:1px solid var(--bd)}";
+    h += "ul.checks li:last-child{border-bottom:0}";
+    h += "ul.checks li:before{content:'\\2713';position:absolute;left:2px;top:7px;color:var(--cy);"
+         "font-weight:800}";
+    // replicate block
+    h += ".repl{background:var(--panel2);border:1px dashed var(--bd);border-radius:10px;"
+         "padding:12px 14px;font-size:14px;color:#cfe;line-height:1.5}";
+    h += ".foot{margin-top:22px;font-size:12px;color:#6b7280;line-height:1.5;text-align:center}";
     h += "</style></head><body><div class='wrap'>";
-    h += "<span class='tag'>VariOne Debrief</span>";
+
+    // --- hero header ---
+    h += "<div class='brand'><b>VAR<span style='color:var(--cy2)'>I</span>ONE</b>"
+         "&nbsp;&middot;&nbsp;Awareness Debrief</div>";
+    h += "<div class='hero'><div class='vemo'>" + vemoSvg(64) + "</div><div>";
     h += "<h1>" + title + "</h1>";
+    h += "<span class='pill " + sevCls + "'>" + sevLabel + "</span></div></div>";
 
-    // Session facts (real data)
-    h += "<h2>Session</h2><table>";
-    h += "<tr><td>Target</td><td>" + (f.target.isEmpty() ? String("-") : f.target) + "</td></tr>";
-    if (!f.bssid.isEmpty()) h += "<tr><td>BSSID</td><td>" + f.bssid + "</td></tr>";
-    if (!f.channels.isEmpty()) h += "<tr><td>Channel(s)</td><td>" + f.channels + "</td></tr>";
+    // --- session stat cards (real data) ---
+    h += "<div class='stats'>";
+    h += statCard(f.target.isEmpty() ? String("&mdash;") : f.target, "Target");
+    if (!f.channels.isEmpty()) h += statCard(f.channels, "Channel(s)");
     if (f.type == DEBRIEF_EVIL_PORTAL) {
-        h += "<tr><td>Clients</td><td>" + String(f.clients) + "</td></tr>";
-        h += "<tr><td>Credentials captured</td><td>" + String(f.creds) + "</td></tr>";
+        h += statCard(String(f.clients), "Clients");
+        h += statCard(String(f.creds), "Credentials");
     } else if (f.type == DEBRIEF_DEAUTH) {
-        h += "<tr><td>Frames sent</td><td>" + String(f.frames) + "</td></tr>";
+        h += statCard(String(f.frames), "Frames sent");
     } else if (f.type == DEBRIEF_BADUSB) {
-        h += "<tr><td>Vector</td><td>USB keyboard (HID)</td></tr>";
+        h += statCard("USB HID", "Vector");
     }
-    h += "<tr><td>Duration</td><td>" + String(f.durationS) + " s</td></tr>";
-    h += "</table>";
+    h += statCard(String(f.durationS) + "s", "Duration");
+    if (!f.bssid.isEmpty()) h += statCard(f.bssid, "BSSID");
+    h += "</div>";
 
-    h += "<h2>Session insight</h2><p>" + dynamicInsight(f) + "</p>";
+    // --- session insight (fact-driven) ---
+    h += "<div class='card insight'><div class='sec'><span class='ic'>&#9889;</span>"
+         "Session insight</div><p>" + dynamicInsight(f) + "</p></div>";
+
+    // --- AI analysis (optional) ---
     if (!aiText.isEmpty()) {
-        h += "<h2>AI analysis</h2><p>" + htmlEscapeAi(aiText) + "</p>";
+        h += "<div class='card ai'><div class='sec'><span class='ic'>&#129302;</span>"
+             "AI analysis</div><div>" + sanitizeAiHtml(aiText) + "</div></div>";
     }
-    h += "<h2>What happened</h2><p>" + lessonWhat(f.type) + "</p>";
-    h += "<h2>Why it works</h2><p>" + lessonWhy(f.type) + "</p>";
-    h += "<h2>Mitigations</h2><ul>" + lessonMitigations(f.type) + "</ul>";
-    h += "<h2>Replicate (authorized testing)</h2><p>" + lessonReplicate(f.type) + "</p>";
 
-    h += "<div class='foot'>Generated on-device by VariOne. Authorized lab/demo use only. ";
+    // --- lesson backbone ---
+    h += "<div class='card accent'><div class='sec'><span class='ic'>&#128225;</span>"
+         "What happened</div><p>" + lessonWhat(f.type) + "</p></div>";
+    h += "<div class='card accent'><div class='sec'><span class='ic'>&#128275;</span>"
+         "Why it works</div><p>" + lessonWhy(f.type) + "</p></div>";
+    h += "<div class='card'><div class='sec'><span class='ic'>&#128737;</span>"
+         "Mitigations</div><ul class='checks'>" + lessonMitigations(f.type) + "</ul></div>";
+    h += "<div class='card'><div class='sec'><span class='ic'>&#129514;</span>"
+         "Replicate (authorized testing)</div><div class='repl'>" + lessonReplicate(f.type) +
+         "</div></div>";
+
+    // --- footer ---
+    h += "<div class='foot'>Generated on-device by VariOne &middot; authorized lab/demo use only.<br>";
     if (!aiText.isEmpty())
-        h += "(The AI analysis was generated by Gemini from aggregate session facts only — no "
-             "captured data left the device. Lesson content is templated.)";
+        h += "AI analysis generated from aggregate session facts only &mdash; no captured data left "
+             "the device. Lesson content is templated.";
     else
-        h += "(Lesson content is templated; the session insight is generated from your capture.)";
+        h += "Lesson content is templated; the session insight is generated from your capture.";
     h += "</div>";
     h += "</div></body></html>";
     return h;
@@ -415,7 +531,7 @@ void runDebrief(const DebriefFacts &facts) {
     if (bruceConfig.aiDebriefEnabled) {
         displayTextLine("Connecting WiFi for AI...");
         if (wifiConnecttoKnownNet()) {
-            displayTextLine("Asking Gemini...");
+            displayTextLine("Asking AI...");
             aiText = aiGenerateDebrief(facts);
         } else {
             Serial.println("[DEBRIEF] no known WiFi — offline debrief");
