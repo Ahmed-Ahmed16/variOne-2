@@ -119,7 +119,7 @@ void showDeviceInfo() {
 #endif
     area.addLine("Graduation Project - CIC New Cairo");
     area.addLine("Supervised by Dr. Ahmed Gaber");
-    area.addLine("Bruce Version: " + String(BRUCE_VERSION));
+    area.addLine("VariOne Version: " + String(BRUCE_VERSION));
     area.addLine("EEPROM size: " + String(EEPROMSIZE));
     area.addLine("");
     area.addLine("[MEMORY]");

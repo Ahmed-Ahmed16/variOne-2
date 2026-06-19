@@ -1,27 +1,23 @@
-![Bruce Main Menu](./media/pictures/bruce_banner.jpg)
+# 🛡️ VariOne
 
-# :shark: Bruce
+**VariOne** is an ESP32-S3 wireless security-awareness device built as a graduation
+project for **CIC New Cairo** (supervised by Dr. Ahmed Gaber). It is a hardware-specific
+fork of the open-source [**Bruce**](https://github.com/pr3y/Bruce) firmware, retargeted to
+the VariOne S3 board and operated only inside formally authorized lab environments under NDA.
 
-Bruce is a versatile ESP32 firmware that supports a ton of offensive features focusing on facilitating Red Team operations.
-It also supports M5stack and Lilygo products and works great with Cardputer, Sticks, M5Cores, T-Decks and T-Embeds.
+VariOne demonstrates real wireless attack chains — WiFi, BLE, RF/Sub-GHz, RFID/NFC, IR,
+NRF24 and BadUSB — for educational security-awareness and red-team training.
 
-**Check our fully open-source hardware too:** https://bruce.computer/boards
+## :building_construction: Build & flash
 
-## :building_construction: How to install
+VariOne ships one board profile (`varione-s3`). Build and flash with PlatformIO:
 
-### The easiest way to install Bruce is using our official Web Flasher!
-### Check out: https://bruce.computer/flasher
-
-Alternatively, you can download the latest binary from releases or actions and flash locally using esptool.py
 ```sh
-esptool.py --port /dev/ttyACM0 write_flash 0x00000 Bruce-<device>.bin
+pio run               # build firmware (default env: varione-s3)
+pio run -t upload     # flash over USB
+pio run -t uploadfs   # flash the LittleFS data/ image (themes, portal, payloads)
+pio device monitor    # serial monitor @ 115200
 ```
-
-**For m5stack devices**
-
-If you already use M5Launcher to manage your m5stack device, you can install it with OTA
-
-Or you can burn it directly from the [m5burner tool](https://docs.m5stack.com/en/download), just search for 'Bruce' (My official builds will be uploaded by "owner" and have photos.) on the device category you want to and click on burn
 
 
 ## :keyboard: Discord Server
@@ -241,11 +237,6 @@ Also, [read our FAQ](https://github.com/pr3y/Bruce/wiki/FAQ)
 ## :sparkles: Why and how does it look?
 
 Bruce stems from a keen observation within the community focused on devices like Flipper Zero. While these devices offered a glimpse into the world of offensive security, there was a palpable sense that something more could be achieved without being that overpriced, particularly with the robust and modular hardware ecosystem provided by ESP32 Devices, Lilygo and M5Stack products.
-
-![Bruce Main Menu](./media/pictures/pic1.png)
-![Bruce on M5Core](./media/pictures/core.png)
-![Bruce on Stick](./media/pictures/stick.png)
-![Bruce on CYD](./media/pictures/cyd.png)
 
 Other media can be [found here](./media/).
 
