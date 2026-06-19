@@ -21,7 +21,11 @@ void RFMenu::optionsMenu() {
         {"Custom SubGhz",   sendCustomRF              },
 #endif
         {"Spectrum",        rf_spectrum               },
+#if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Band Scanner",    rf_band_scanner           }, // VariOne: all-band sweep
+                                                         // (hidden in demo: CC1101 RSSI
+                                                         // sweep unreliable on this board)
+#endif
 #if !defined(LITE_VERSION)
 #if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"RSSI Spectrum",   rf_CC1101_rssi            }, // @Pirata
