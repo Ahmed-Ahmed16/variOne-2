@@ -26,3 +26,24 @@ src/modules/varione/varione_secrets.h
 # Local Python tooling / AI proxy secrets
 .venv/
 .env.ai_debrief
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.lof
+*.lot
+*.out
+*.toc
+*.xdv
+
+# clangd / build index (regenerated per env)
+compile_commands.json
+
+# Local LaTeX toolchain binary
+.tools/
+
+# Python bytecode
+__pycache__/
+*.pyc
