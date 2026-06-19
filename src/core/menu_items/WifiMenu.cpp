@@ -92,7 +92,9 @@ void WifiMenu::optionsMenu() {
     options.push_back({"Responder", responder});
     options.push_back({"VariGotchi", brucegotchi_start});
 #endif
+#if !defined(VARIONE_HIDE_WIFI_EXTRAS)
     options.push_back({"WiFi Pass Recovery", wifi_recover_menu});
+#endif
 #endif
     
     options.push_back({"Config", [this]() { configMenu(); }});

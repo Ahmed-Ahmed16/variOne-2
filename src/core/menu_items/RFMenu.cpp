@@ -23,9 +23,11 @@ void RFMenu::optionsMenu() {
         {"Spectrum",        rf_spectrum               },
         {"Band Scanner",    rf_band_scanner           }, // VariOne: all-band sweep
 #if !defined(LITE_VERSION)
+#if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"RSSI Spectrum",   rf_CC1101_rssi            }, // @Pirata
         {"SquareWave Spec", rf_SquareWave             }, // @Pirata
         {"Spectogram",      rf_waterfall              }, // dev_eclipse
+#endif
 #if defined(BUZZ_PIN) or defined(HAS_NS4168_SPKR) and defined(RF_LISTEN_H)
         {"Listen",          rf_listen                 }, // dev_eclipse
 #endif
@@ -36,9 +38,7 @@ void RFMenu::optionsMenu() {
 #if !defined(VARIONE_HIDE_RF_EXTRAS)
         {"Jammer Itmt",     [=]() { RFJammer(false); }},
 #endif
-#if !defined(VARIONE_HIDE_RF_EXTRAS)
-        {"Jammer Full",     [=]() { RFJammer(true); } },
-#endif
+        {"Jammer Full",     [=]() { RFJammer(true); } }, // VariOne: always visible
 #endif
         {"Config",          [this]() { configMenu(); }},
     };
