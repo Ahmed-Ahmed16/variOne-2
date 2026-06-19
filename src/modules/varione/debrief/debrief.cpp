@@ -11,6 +11,7 @@
 #include "core/wifi/webInterface.h" // shared port-80 server (webDebriefBegin/End)
 #include "core/wifi/wifi_common.h"
 #include <DNSServer.h>
+#include <esp_netif.h> // AP DHCP server re-seat (dhcps stop/set-ip/start)
 #include <FS.h>
 #include <SD.h>
 #include <WiFi.h>
@@ -404,6 +405,28 @@ static void serveReportLoop() {
     String apSsid = bruceConfig.wifiAp.ssid;
     if (apSsid.isEmpty()) apSsid = "VariOne";
     Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
+
+    // The preceding deauth attack runs the radio in APSTA + raw-injection mode;
+    // its teardown can leave the AP esp_netif's DHCP server wedged. The beacon +
+    // association then work (serial shows stations=1) but the phone never gets an
+    // IP, so it associates and immediately drops ("can't connect", issue 7).
+    // Re-seat the DHCP server on the AP netif with a valid 192.168.4.1/24 pool so
+    // the join actually leases an address. Scoped to the debrief AP only — does
+    // NOT touch the plain "Start WiFi AP" path. (esp_netif_set_ip_info between
+    // stop/start is the bit my earlier attempt missed, which left an empty pool.)
+    {
+        esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        if (apNetif) {
+            esp_netif_dhcps_stop(apNetif);
+            esp_netif_ip_info_t ipInfo = {};
+            IP4_ADDR(&ipInfo.ip, 192, 168, 4, 1);
+            IP4_ADDR(&ipInfo.gw, 192, 168, 4, 1);
+            IP4_ADDR(&ipInfo.netmask, 255, 255, 255, 0);
+            esp_netif_set_ip_info(apNetif, &ipInfo);
+            esp_err_t derr = esp_netif_dhcps_start(apNetif);
+            Serial.printf("[DEBRIEF][diag] dhcps re-seat ip=192.168.4.1 start=%d\n", (int)derr);
+        }
+    }
 
     s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
 
