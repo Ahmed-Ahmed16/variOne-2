@@ -579,6 +579,11 @@ int loopOptions(
             displayScrollingText(txt, coord);
         }
 
+        // CANONICAL BACK RULE (VariOne): BACK always cancels / goes up one level
+        // and NEVER acts as select. Here that means BACK leaves the menu returning
+        // index = -1 (no option fires). Any custom feature loop must mirror this:
+        // check(EscPress) -> break/return up one level, never a confirm.
+        //
         // Checks ESC Press first, to not exit after PrevPress is processed
         // PrevPress condition is a StickCPlus workaround, as it uses the same button for Prev and Esc
         // Same happens to Core and some other boards

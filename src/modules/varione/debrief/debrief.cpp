@@ -483,6 +483,20 @@ void debriefArmDeauthFlood(uint32_t frames, uint32_t durationS, int apCount) {
     g_pendingValid = true;
 }
 
+void debriefArmDeauthTarget(
+    const String &ssid, const String &bssid, uint8_t channel, uint32_t frames, uint32_t durationS
+) {
+    g_pending = DebriefFacts{};
+    g_pending.type = DEBRIEF_DEAUTH;
+    g_pending.target = ssid.isEmpty() ? String("(hidden AP)") : ssid;
+    g_pending.bssid = bssid;
+    g_pending.channels = String(channel);
+    g_pending.frames = frames;
+    g_pending.clients = 1;
+    g_pending.durationS = durationS;
+    g_pendingValid = true;
+}
+
 void debriefArmBeacon(const String &mode, uint32_t durationS) {
     g_pending = DebriefFacts{};
     g_pending.type = DEBRIEF_BEACON;

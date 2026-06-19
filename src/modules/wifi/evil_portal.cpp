@@ -287,14 +287,11 @@ void EvilPortal::loop() {
             previousTotalCapturedCredentials = totalCapturedCredentials - 1;
         }
 
+        // OK/SEL opens the portal options menu (select = OK). Deauth toggle and
+        // live View Creds live here so BACK can stay a pure "go up one level".
         if (check(SelPress)) {
-            isDeauthHeld = _deauth ? !isDeauthHeld : isDeauthHeld;
-            shouldRedraw = true;
-        }
-
-        if (check(EscPress)) {
             options = {
-                {"Exit Portal", [&exitPortal]() { exitPortal = true; }},
+                {"Resume", [&shouldRedraw]() { shouldRedraw = true; }},
                 {"View Creds", [this, &shouldRedraw]() {
                     FS *fs;
                     if (getFsStorage(fs)) {
@@ -307,29 +304,38 @@ void EvilPortal::loop() {
                     }
                     shouldRedraw = true;
                 }},
-                {"Resume", [&shouldRedraw]() { shouldRedraw = true; }}
             };
-            
+            if (_deauth)
+                options.push_back(
+                    {isDeauthHeld ? "Resume deauth" : "Pause deauth",
+                     [this]() { isDeauthHeld = !isDeauthHeld; }}
+                );
+            options.push_back({"Exit Portal", [&exitPortal]() { exitPortal = true; }});
             loopOptions(options);
-            if (exitPortal) {
-                displayTextLine("Shutting down...");
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-                
-                webServer.end();
-                vTaskDelay(200 / portTICK_PERIOD_MS);
-                
-                dnsServer.stop();
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-                
-                WiFi.mode(_originalWifiMode);
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-                
-                wifiDisconnect();
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-                
-                return;
-            }
             shouldRedraw = true;
+        }
+
+        // Global BACK rule: BACK goes up one level — exit the portal directly.
+        // It must never open a sub-menu or act as select.
+        if (check(EscPress)) exitPortal = true;
+
+        if (exitPortal) {
+            displayTextLine("Shutting down...");
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+            webServer.end();
+            vTaskDelay(200 / portTICK_PERIOD_MS);
+
+            dnsServer.stop();
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+            WiFi.mode(_originalWifiMode);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+            wifiDisconnect();
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+            return;
         }
 
         if (verifyPass) {

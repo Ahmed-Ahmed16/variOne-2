@@ -36,6 +36,11 @@ void runDebrief(const DebriefFacts &facts);
 // stored in static storage; debriefRunPending() then runs the debrief later,
 // from the menu, once the attack's stack has unwound.
 void debriefArmDeauthFlood(uint32_t frames, uint32_t durationS, int apCount);
+// Targeted single-AP deauth: record the specific SSID/BSSID/channel hit so the
+// debrief names the real target instead of "All scanned APs".
+void debriefArmDeauthTarget(
+    const String &ssid, const String &bssid, uint8_t channel, uint32_t frames, uint32_t durationS
+);
 void debriefArmBeacon(const String &mode, uint32_t durationS);
 // BadUSB/HID injection: scriptName is the file that ran; durationS how long it
 // typed. Unified across every script — the lesson is about HID trust, not the

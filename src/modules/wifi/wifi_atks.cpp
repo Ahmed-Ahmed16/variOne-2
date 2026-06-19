@@ -813,6 +813,8 @@ void target_atk(String tssid, String mac, uint8_t channel) {
 
     uint32_t lastUpdateTime = millis();
     uint32_t frameCount = 0;
+    uint32_t totalFrames = 0;        // accumulates for the debrief (frameCount resets each FPS tick)
+    uint32_t debriefStartMs = millis();
     bool needsRedraw = true;
     bool attackActive = true;
 
@@ -842,6 +844,7 @@ void target_atk(String tssid, String mac, uint8_t channel) {
         // Send deauth frame
         send_raw_frame(deauth_frame, sizeof(deauth_frame_default));
         frameCount += FRAMES_PER_SEND;
+        totalFrames += FRAMES_PER_SEND;
 
         // Update FPS counter periodically
         uint32_t currentTime = millis();
@@ -879,6 +882,11 @@ void target_atk(String tssid, String mac, uint8_t channel) {
     }
 
     wifi_atk_unsetWifi();
+
+    // VariOne AI Debrief — record the targeted-deauth facts cheaply; the heavy
+    // debrief runs later from wifi_atk_menu (debriefRunPending), off this stack.
+    debriefArmDeauthTarget(tssid, mac, channel, totalFrames, (millis() - debriefStartMs) / 1000);
+
     returnToMenu = true;
 }
 
