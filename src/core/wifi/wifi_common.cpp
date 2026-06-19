@@ -173,19 +173,6 @@ bool _setupAP() {
     WiFi.setTxPower(WIFI_POWER_19_5dBm);
     esp_wifi_set_max_tx_power(80); // 80 = 20 dBm (0.25 dBm units)
 
-    // Flush the DHCP server lease pool on every AP raise. The IDF dhcps keeps
-    // stale leases across a softAP() teardown/restart, so a 2nd debrief or a
-    // returning client could fail to be handed an IP ("Couldn't get IP",
-    // issue 7). softAP() has already started dhcps, so stop+start cycles it to
-    // rebuild a clean lease table. One spot fixes every AP path (menu / debrief
-    // / WebUI / portal) that routes through here.
-    esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-    if (apNetif) {
-        esp_netif_dhcps_stop(apNetif);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        esp_netif_dhcps_start(apNetif);
-    }
-
     wifiIP = WiFi.softAPIP().toString(); // update global var
     Serial.println("[AP] SSID: " + apSsid + "  IP: " + wifiIP);
 

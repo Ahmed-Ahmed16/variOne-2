@@ -43,6 +43,11 @@ void rf_band_scanner() {
         displayError("CC1101 not found!", true);
         return;
     }
+    // initRfModule narrows RX BW to 256 kHz for decode accuracy. For a coarse
+    // 1 MHz energy sweep that leaves ~744 kHz blind between steps, so a 433.92
+    // car-key key landed in the gap and was never seen. Widen to the CC1101 max
+    // (812 kHz) so each step covers ~+/-400 kHz and the sweep is near-contiguous.
+    ELECHOUSE_cc1101.setRxBW(812.50);
 
     drawMainBorderWithTitle("RF Band Scanner");
 
@@ -54,23 +59,21 @@ void rf_band_scanner() {
 
     // A single "strongest freq ever" with a strict > comparison froze Best at the
     // first sample (300 MHz) on a flat noise floor (issue 9). Instead: track a
-    // running noise floor (quietest reading) and, each sweep, the loudest freq;
-    // report it as real activity only when it rises kActiveMarginDb above floor.
-    const int kActiveMarginDb = 10;
+    // running noise floor (quietest reading) and flag a freq as activity the
+    // instant its RSSI rises kActiveMarginDb above floor. The detected peak is
+    // STICKY (held on screen) so a brief OOK burst (e.g. a car-key tap) is caught
+    // and shown even though the sweep has already moved past it.
+    const int kActiveMarginDb = 8;
     int noise_floor = 0;   // starts high; pulled down by the first samples
     bool floorInit = false;
 
-    float peak_freq = 0.0f; // committed peak of the last completed sweep
+    float peak_freq = 0.0f; // strongest activity caught so far (sticky)
     int peak_rssi = -128;
     bool peak_active = false;
     unsigned long lastDraw = 0;
     bool quit = false;
 
     while (!quit) {
-        // Reset per-sweep peak so Best tracks current activity, not a stale max.
-        float sweep_peak_freq = 0.0f;
-        int sweep_peak_rssi = -128;
-
         for (int b = 0; b < kBandCount && !quit; b++) {
             for (float f = kBands[b].start; f <= kBands[b].end; f += kStepMhz) {
                 setMHZ(f);
@@ -91,10 +94,13 @@ void rf_band_scanner() {
                     noise_floor = rssi;
                     floorInit = true;
                 }
-                // Loudest freq within this sweep.
-                if (rssi > sweep_peak_rssi) {
-                    sweep_peak_rssi = rssi;
-                    sweep_peak_freq = f;
+                // Live, sticky detection: capture the strongest freq that beats
+                // the floor by the margin and redraw immediately so the hit shows.
+                if (floorInit && rssi > noise_floor + kActiveMarginDb && rssi > peak_rssi) {
+                    peak_rssi = rssi;
+                    peak_freq = f;
+                    peak_active = true;
+                    lastDraw = 0; // force an immediate redraw of the new peak
                 }
 
                 // Throttle the redraw so per-step work stays short (and the
@@ -120,22 +126,21 @@ void rf_band_scanner() {
                     if (peak_active) tft.printf("Signal: %d dBm ", peak_rssi);
                     else tft.print("Signal: none         ");
                     tft.setCursor(kBlockX, kBaseY + kLineH * 5);
-                    tft.print("Press BACK to stop.");
+                    tft.print("BACK stop  OK reset");
                 }
 
-                // BACK must always be cancellable. Poll every step; per-step
-                // work above is far below the ~75 ms tap window.
+                // BACK cancels; OK clears the sticky peak to re-detect.
                 if (check(EscPress)) {
                     quit = true;
                     break;
                 }
+                if (check(SelPress)) {
+                    peak_active = false;
+                    peak_rssi = -128;
+                    lastDraw = 0;
+                }
             }
         }
-
-        // Commit this sweep's peak; it counts as activity only above the floor.
-        peak_freq = sweep_peak_freq;
-        peak_rssi = sweep_peak_rssi;
-        peak_active = floorInit && (sweep_peak_rssi > noise_floor + kActiveMarginDb);
     }
 
     returnToMenu = true;

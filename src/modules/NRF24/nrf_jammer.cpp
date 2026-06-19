@@ -770,8 +770,11 @@ void nrf_jammer() {
     options.clear();
     for (int i = 0; i < NRF_JAM_MODE_COUNT; i++) {
 #if defined(VARIONE_HIDE_NRF_EXTRAS)
-        // Demo build: hide modes that need gear the owner can't demo.
-        if (i == NRF_JAM_VIDEO || i == NRF_JAM_RC || i == NRF_JAM_ZIGBEE || i == NRF_JAM_DRONE)
+        // Demo build: hide modes that need gear the owner can't demo, plus USB
+        // (mouse/kb) HID — an nRF24 can't reliably disrupt a real Logitech-class
+        // hopping dongle on this hardware, so it under-delivers in a demo.
+        if (i == NRF_JAM_VIDEO || i == NRF_JAM_RC || i == NRF_JAM_ZIGBEE || i == NRF_JAM_DRONE ||
+            i == NRF_JAM_USB)
             continue;
 #endif
         int mIdx = i;
