@@ -45,7 +45,7 @@ void ble_info(String name, String address, String signal) {
     tft.setTextColor(bruceConfig.priColor);
     tft.drawCentreString("-=Information=-", tftWidth / 2, 28, SMOOTH_FONT);
     tft.drawString("Name: " + name, 10, 48);
-    tft.drawString("Adresse: " + address, 10, 66);
+    tft.drawString("Address: " + address, 10, 66);
     tft.drawString("Signal: " + String(signal) + " dBm", 10, 84);
     tft.drawCentreString("   Press " + String(BTN_ALIAS) + " to act", tftWidth / 2, tftHeight - 20, 1);
 

@@ -110,7 +110,7 @@ bool EvilPortal::setup() {
 
 void EvilPortal::beginAP() {
     if (!_backgroundMode) {
-        drawMainBorderWithTitle("EVIL PORTAL");
+        drawMainBorderWithTitle("VARIPORTAL");
         displayTextLine("Starting...");
     }
     if (_verifyPwd) WiFi.mode(WIFI_MODE_APSTA);
@@ -398,7 +398,7 @@ void EvilPortal::checkAndExtendDuration() {
 }
 
 void EvilPortal::drawScreen() {
-    drawMainBorderWithTitle("EVIL PORTAL");
+    drawMainBorderWithTitle("VARIPORTAL");
 
     String subtitle = "AP: " + apName.substring(0, 30);
     if (apName.length() > 30) subtitle += "...";
@@ -754,7 +754,7 @@ String EvilPortal::creds_GET() {
 
 String EvilPortal::ssid_GET() {
     return getHtmlTemplate(
-        "<p>Set a new SSID for Evil Portal:</p><form action='" +
+        "<p>Set a new SSID for VariPortal:</p><form action='" +
         bruceConfig.evilPortalEndpoints.setSsidEndpoint +
         "' id='login-form'><input name='ssid' "
         "class='input-field' type='text' placeholder='" +
@@ -764,7 +764,7 @@ String EvilPortal::ssid_GET() {
 
 String EvilPortal::ssid_POST() {
     return getHtmlTemplate(
-        "Evil Portal shutting down and restarting with SSID <b>" + apName + "</b>. Please reconnect."
+        "VariPortal shutting down and restarting with SSID <b>" + apName + "</b>. Please reconnect."
     );
 }
 
@@ -794,7 +794,7 @@ void EvilPortal::saveToCSV(const String &csvLine, bool isAPname) {
     log_i("data saved");
 }
 
-void EvilPortal::apName_from_keyboard() { apName = keyboard("Free Wifi", 30, "Evil Portal SSID:"); }
+void EvilPortal::apName_from_keyboard() { apName = keyboard("Free Wifi", 30, "VariPortal SSID:"); }
 
 bool EvilPortal::verifyCreds(String &Ssid, String &Password) {
     bool isConnected = false;

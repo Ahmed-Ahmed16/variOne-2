@@ -238,7 +238,7 @@ void boot_screen() {
     tft.setTextSize(FP);
     tft.drawCentreString("v" VARIONE_VERSION, tftWidth / 2, 25, 1);
 #else
-    tft.drawCentreString("Bruce", tftWidth / 2, 10, 1);
+    tft.drawCentreString("VariOne", tftWidth / 2, 10, 1);
     tft.setTextSize(FP);
     tft.drawCentreString(BRUCE_VERSION, tftWidth / 2, 25, 1);
 #endif

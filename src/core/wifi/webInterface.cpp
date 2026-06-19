@@ -24,7 +24,7 @@ const int default_webserverporthttp = 80;
 IPAddress AP_GATEWAY(172, 0, 0, 1); // Gateway
 
 AsyncWebServer *server = nullptr; // initialise webserver
-const char *host = "bruce";
+const char *host = "varione";
 String uploadFolder = "";
 static bool mdnsRunning = false;
 
@@ -330,7 +330,7 @@ void drawWebUiScreen(bool mode_ap) {
     else txt = WiFi.softAPIP().toString();
     tft.setTextColor(bruceConfig.priColor);
 
-    tft.drawCentreString("http://bruce.local", tftWidth / 2, 45, 1);
+    tft.drawCentreString("http://varione.local", tftWidth / 2, 45, 1);
     setTftDisplay(7, 67);
 
     tft.setTextSize(FM);

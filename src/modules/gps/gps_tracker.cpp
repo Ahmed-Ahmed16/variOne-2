@@ -173,8 +173,8 @@ void GPSTracker::add_initial_file_data(File file) {
     file.println("  <metadata>");
     file.println("    <name>VariOne GPS Tracker</name>");
     file.println("    <desc>GPS Tracker using VariOne Firmware</desc>");
-    file.println("    <link href=\"https://bruce.computer\">");
-    file.println("      <text>Bruce Website</text>");
+    file.println("    <link href=\"https://varione.ai\">");
+    file.println("      <text>VariOne Website</text>");
     file.println("    </link>");
     file.println("  </metadata>");
     file.println("  <trk>");

@@ -286,6 +286,13 @@ void BruceConfig::fromFile(bool checkFS) {
         JsonObject wifiApObj = setting["wifiAp"].as<JsonObject>();
         wifiAp.ssid = wifiApObj["ssid"].as<String>();
         wifiAp.pwd = wifiApObj["pwd"].as<String>();
+        // One-time migration: persisted /bruce.conf may hold the pre-rename SSID.
+        // Reset any old Bruce-era default back to the VariOne brand default.
+        if (wifiAp.ssid.isEmpty() || wifiAp.ssid == "BruceNet" || wifiAp.ssid == "brucenet" ||
+            wifiAp.ssid == "BruceAP" || wifiAp.ssid == "Bruce") {
+            wifiAp.ssid = "VariOne";
+            wifiAp.pwd = "varione1";
+        }
     } else {
         count++;
         log_e("Fail");

@@ -404,7 +404,7 @@ int PN532::emulate() {
     if ((!canParseUltralightDump || !extractNdefMessageFromPageDump(strAllPages, emulatedNdefMessage))) {
         if (!buildNdefMessageFromStruct(this->ndefMessage, emulatedNdefMessage)) {
             // Fallback test payload if no loaded/read NDEF is available.
-            std::vector<uint8_t> uriPayload = Ndef::urlNdefAbbrv("https://bruce.computer");
+            std::vector<uint8_t> uriPayload = Ndef::urlNdefAbbrv("https://varione.ai");
             emulatedNdefMessage = Ndef::newMessage(uriPayload);
         }
     }

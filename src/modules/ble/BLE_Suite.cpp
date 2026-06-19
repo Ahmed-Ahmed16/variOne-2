@@ -3904,8 +3904,8 @@ void showWelcomeScreen() {
     tft.fillScreen(TFT_GRAY);
     tft.setTextSize(3);
     tft.setTextColor(TFT_PURPLE, TFT_GRAY);
-    tft.setCursor((tftWidth - tft.textWidth("BRUCE")) / 2, 40);
-    tft.print("BRUCE");
+    tft.setCursor((tftWidth - tft.textWidth("VARIONE")) / 2, 40);
+    tft.print("VARIONE");
 
     tft.setTextColor(TFT_BLUE, TFT_GRAY);
     tft.setTextSize(2);

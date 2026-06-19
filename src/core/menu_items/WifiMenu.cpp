@@ -59,7 +59,7 @@ void WifiMenu::optionsMenu() {
         options.push_back({"AP info", displayAPInfo});
     }
     options.push_back({"Wifi Atks", wifi_atk_menu});
-    options.push_back({"Evil Portal", [=]() {
+    options.push_back({"VariPortal", [=]() {
                            // WebUI cleanup now handled automatically inside EvilPortal constructor
                            EvilPortal();
                        }});
@@ -108,11 +108,11 @@ void WifiMenu::configMenu() {
     std::vector<Option> wifiOptions;
 
     wifiOptions.push_back({"Change MAC", wifiMACMenu});
-    wifiOptions.push_back({"Add Evil Wifi", addEvilWifiMenu});
-    wifiOptions.push_back({"Remove Evil Wifi", removeEvilWifiMenu});
+    wifiOptions.push_back({"Add VariPortal SSID", addEvilWifiMenu});
+    wifiOptions.push_back({"Remove VariPortal SSID", removeEvilWifiMenu});
 
-    // Evil Wifi Settings submenu (unchanged)
-    wifiOptions.push_back({"Evil Wifi Settings", [this]() {
+    // VariPortal Settings submenu (unchanged)
+    wifiOptions.push_back({"VariPortal Settings", [this]() {
                                std::vector<Option> evilOptions;
 
                                evilOptions.push_back({"Password Mode", setEvilPasswordMode});
@@ -122,7 +122,7 @@ void WifiMenu::configMenu() {
                                evilOptions.push_back({"Allow /ssid access", setEvilAllowSetSsid});
                                evilOptions.push_back({"Display endpoints", setEvilAllowEndpointDisplay});
                                evilOptions.push_back({"Back", [this]() { configMenu(); }});
-                               loopOptions(evilOptions, MENU_TYPE_SUBMENU, "Evil Wifi Settings");
+                               loopOptions(evilOptions, MENU_TYPE_SUBMENU, "VariPortal Settings");
                            }});
 
     {

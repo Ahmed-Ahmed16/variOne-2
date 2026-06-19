@@ -198,7 +198,7 @@ bool Wigle::_upload_file(File file, String upload_message) {
 
     String filename = file.name();
     int filesize = file.size();
-    String boundary = "BRUCE";
+    String boundary = "VARIONE";
     boundary.concat(esp_random());
 
     send_upload_headers(client, filename, filesize, boundary);

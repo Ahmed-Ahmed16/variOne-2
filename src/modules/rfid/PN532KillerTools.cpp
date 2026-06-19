@@ -927,7 +927,7 @@ void PN532KillerTools::udpWifiSelectMenu() {
     selOptions.push_back({"AP Mode", [&]() {
                               displayInfo("Starting AP...");
                               WiFi.mode(WIFI_AP);
-                              WiFi.softAP("BRUCE-UDP", "", 6);
+                              WiFi.softAP("VARIONE-UDP", "", 6);
                               delay(200);
                               enableUdpDataTransfer();
                           }});

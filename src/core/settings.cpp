@@ -487,7 +487,7 @@ void setWifiStartupConfig() {
 **  Handles Menu to add evil wifi names into config list
 **********************************************************************/
 void addEvilWifiMenu() {
-    String apName = keyboard("", 30, "Evil Portal SSID");
+    String apName = keyboard("", 30, "VariPortal SSID");
     if (apName != "\x1B") bruceConfig.addEvilWifiName(apName);
 }
 
@@ -512,7 +512,7 @@ void removeEvilWifiMenu() {
 **  Handles menu for changing the endpoint to access captured creds
 **********************************************************************/
 void setEvilEndpointCreds() {
-    String userInput = keyboard(bruceConfig.evilPortalEndpoints.getCredsEndpoint, 30, "Evil creds endpoint");
+    String userInput = keyboard(bruceConfig.evilPortalEndpoints.getCredsEndpoint, 30, "VariPortal creds endpoint");
     if (userInput != "\x1B") bruceConfig.setEvilEndpointCreds(userInput);
 }
 
@@ -521,7 +521,7 @@ void setEvilEndpointCreds() {
 **  Handles menu for changing the endpoint to change evilSsid
 **********************************************************************/
 void setEvilEndpointSsid() {
-    String userInput = keyboard(bruceConfig.evilPortalEndpoints.setSsidEndpoint, 30, "Evil creds endpoint");
+    String userInput = keyboard(bruceConfig.evilPortalEndpoints.setSsidEndpoint, 30, "VariPortal SSID endpoint");
     if (userInput != "\x1B") bruceConfig.setEvilEndpointSsid(userInput);
 }
 
@@ -678,12 +678,8 @@ void setRFModuleMenu() {
         }
         // else display an error
         displayError("CC1101 not found", true);
-        if (pins_setup == 1)
-            qrcode_display("https://github.com/pr3y/Bruce/blob/main/media/connections/cc1101_stick.jpg");
-        if (pins_setup == 2)
-            qrcode_display(
-                "https://github.com/pr3y/Bruce/blob/main/media/connections/cc1101_stick_SDCard.jpg"
-            );
+        if (pins_setup == 1) qrcode_display("https://github.com/Ahmed-Ahmed16/variOne-2");
+        if (pins_setup == 2) qrcode_display("https://github.com/Ahmed-Ahmed16/variOne-2");
         while (!check(AnyKeyPress)) vTaskDelay(50 / portTICK_PERIOD_MS);
     }
     // fallback to "M5 RF433T/R" on errors
@@ -1275,11 +1271,11 @@ void setWifiApSsidMenu() {
 **  Handles Menu to set the WiFi AP Password
 **********************************************************************/
 void setWifiApPasswordMenu() {
-    const bool isDefault = bruceConfig.wifiAp.pwd == "brucenet";
+    const bool isDefault = bruceConfig.wifiAp.pwd == "varione1";
 
     options = {
-        {"Default (brucenet)",
-         [=]() { bruceConfig.setWifiApCreds(bruceConfig.wifiAp.ssid, "brucenet"); },
+        {"Default (varione1)",
+         [=]() { bruceConfig.setWifiApCreds(bruceConfig.wifiAp.ssid, "varione1"); },
          isDefault                                                                             },
         {"Custom",
          [=]() {

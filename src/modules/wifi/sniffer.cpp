@@ -997,7 +997,7 @@ void sniffer_setup() {
 
     wifi_config_t wifi_config;
     strcpy((char *)wifi_config.ap.ssid, "VariSniffer");
-    strcpy((char *)wifi_config.ap.password, "brucenet");
+    strcpy((char *)wifi_config.ap.password, "varione1");
     wifi_config.ap.ssid_len = strlen("VariSniffer");
     wifi_config.ap.channel = 1;                   // Channel
     wifi_config.ap.authmode = WIFI_AUTH_WPA2_PSK; // auth mode
