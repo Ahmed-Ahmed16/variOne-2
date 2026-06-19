@@ -855,24 +855,17 @@ void drawStatusBar() {
         tft.drawLine(5, 25, tftWidth - 6, 25, bruceConfig.priColor);
     }
 
-    if (clock_set) {
-        int clock_fontsize = 1; // Font size of the clock / BRUCE + BRUCE_VERSION
-        setTftDisplay(12, 12, bruceConfig.priColor, clock_fontsize, bruceConfig.bgColor);
-        tft.fillRect(12, 12, 100, clock_fontsize * LH, bruceConfig.bgColor);
-#if defined(HAS_RTC)
-        updateTimeStr(_rtc.getTimeStruct());
-#else
-        updateTimeStr(rtc.getTimeStruct());
-#endif
-        tft.print(timeStr);
-    } else {
-        setTftDisplay(12, 12, bruceConfig.priColor, 1, bruceConfig.bgColor);
-#ifdef VARIONE_VERSION
-        tft.print("VariOne " + String(VARIONE_VERSION));
-#else
-        tft.print("BRUCE " + String(BRUCE_VERSION));
-#endif
-    }
+    // Free-RAM health gauge — replaces the clock/version slot on the left.
+    // Right side is left to the existing battery-margin logic so a future
+    // battery icon (getBattery() > 0) drops in without further layout changes.
+    uint32_t freeHeap = ESP.getFreeHeap();
+    uint32_t totalHeap = ESP.getHeapSize();
+    int ramPct = totalHeap ? (int)((uint64_t)freeHeap * 100 / totalHeap) : 0;
+    uint16_t ramColor =
+        ramPct < 15 ? TFT_RED : (ramPct < 30 ? TFT_YELLOW : bruceConfig.priColor);
+    tft.fillRect(12, 12, 78, LH, bruceConfig.bgColor); // clear previous reading
+    setTftDisplay(12, 12, ramColor, 1, bruceConfig.bgColor);
+    tft.print("RAM " + String(ramPct) + "%");
 }
 
 void drawMainBorder(bool clear) {
