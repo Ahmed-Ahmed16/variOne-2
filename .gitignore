@@ -47,3 +47,10 @@ compile_commands.json
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Archived session/planning notes + scratch tooling (preserved on disk, not tracked)
+scratch/
+# Thesis/doc deliverables (source-of-truth = Overleaf; kept on disk, out of git to avoid bloat)
+Documentation/
+# Root LaTeX build outputs
+/lastTEST.*
