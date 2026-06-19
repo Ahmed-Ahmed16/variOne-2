@@ -6,6 +6,7 @@
 #include "core/utils.h"
 #include "core/wifi/webInterface.h"
 #include "core/wifi/wifi_common.h"
+#include "esp_netif.h"
 #include "esp_wifi.h"
 #include "wifi_atks.h"
 
@@ -252,7 +253,17 @@ void EvilPortal::restartWiFi(bool reset) {
     wifiDisconnect();
     WiFi.softAP(apName, emptyString, _channel);
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    
+
+    // Flush the DHCP lease pool on this AP re-raise so a returning client (e.g.
+    // after an SSID change) is reliably handed an IP (issue 7), mirroring the
+    // hardened _setupAP() path.
+    esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    if (apNetif) {
+        esp_netif_dhcps_stop(apNetif);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        esp_netif_dhcps_start(apNetif);
+    }
+
     setupRoutes();
     dnsServer.start(53, "*", WiFi.softAPIP());
     webServer.begin();
