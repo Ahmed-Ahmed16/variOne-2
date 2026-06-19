@@ -310,16 +310,35 @@ void EMVReader::read_afl(EMVCard *card, std::vector<uint8_t> *afl) {
     }
 }
 
-bool is_visa(EMVCard *card) {
+// Classify a card by its AID. An exact 7-byte dictionary match wins (it gives
+// the precise product name), otherwise fall back to the 5-byte RID so ANY Visa
+// (RID A0000000 03) or Mastercard (RID A0000000 04) card classifies correctly
+// even when its exact AID isn't one of the handful in known_aid[]. That table
+// gap made real cards read as "unknown" (issue 12): Visa cards carry a PDOL, so
+// a failed is_visa() match dropped them into the "not supported" branch with no
+// PAN read at all.
+EMV_Vendor emv_classify(const uint8_t *aid, const char **outName) {
+    if (aid == nullptr) return EMV_UNKNOWN;
     for (size_t i = 0; i < AID_DICT_SIZE; i++) {
-        if (memcmp(card->aid, known_aid[i].aid, 7) == 0) {
-            if (known_aid[i].vendor == EMV_VISA) return true;
-            else return false;
+        if (memcmp(aid, known_aid[i].aid, 7) == 0) {
+            if (outName) *outName = known_aid[i].name;
+            return known_aid[i].vendor;
         }
     }
-
-    return false;
+    static const uint8_t VISA_RID[5] = {0xA0, 0x00, 0x00, 0x00, 0x03};
+    static const uint8_t MC_RID[5] = {0xA0, 0x00, 0x00, 0x00, 0x04};
+    if (memcmp(aid, VISA_RID, 5) == 0) {
+        if (outName) *outName = "Visa";
+        return EMV_VISA;
+    }
+    if (memcmp(aid, MC_RID, 5) == 0) {
+        if (outName) *outName = "MasterCard";
+        return EMV_MASTERCARD;
+    }
+    return EMV_UNKNOWN;
 }
+
+bool is_visa(EMVCard *card) { return emv_classify(card->aid, nullptr) == EMV_VISA; }
 
 EMVCard EMVReader::read_emv_card() {
     EMVCard res;
@@ -394,17 +413,14 @@ void EMVReader::display_emv(EMVCard card) {
     std::string validto;
 
     if (card.parsed) {
-        bool found = false;
-        for (size_t i = 0; i < AID_DICT_SIZE && !found; i++) {
-            if (memcmp(card.aid, known_aid[i].aid, 7) == 0) {
-                found = true;
-                aid = known_aid[i].name;
-                padprintln(known_aid[i].name);
-                break;
-            }
+        const char *vendorName = nullptr;
+        EMV_Vendor vendor = emv_classify(card.aid, &vendorName);
+        if (vendor != EMV_UNKNOWN && vendorName != nullptr) {
+            aid = vendorName;
+            padprintln(vendorName);
+        } else {
+            padprintln("Unknown card vendor");
         }
-
-        if (!found) { padprintln("Unknown card vendor"); }
         if (card.pan != nullptr) {
             pan = BinToAscii(card.pan, card.pan_len);
             // Add some spacing
