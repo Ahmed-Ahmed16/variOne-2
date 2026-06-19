@@ -52,12 +52,25 @@ void rf_band_scanner() {
     const int kBlockX = 8;
     const int kBlockW = tftWidth - 16;
 
-    float best_freq = kBands[0].start;
-    int best_rssi = -128;
+    // A single "strongest freq ever" with a strict > comparison froze Best at the
+    // first sample (300 MHz) on a flat noise floor (issue 9). Instead: track a
+    // running noise floor (quietest reading) and, each sweep, the loudest freq;
+    // report it as real activity only when it rises kActiveMarginDb above floor.
+    const int kActiveMarginDb = 10;
+    int noise_floor = 0;   // starts high; pulled down by the first samples
+    bool floorInit = false;
+
+    float peak_freq = 0.0f; // committed peak of the last completed sweep
+    int peak_rssi = -128;
+    bool peak_active = false;
     unsigned long lastDraw = 0;
     bool quit = false;
 
     while (!quit) {
+        // Reset per-sweep peak so Best tracks current activity, not a stale max.
+        float sweep_peak_freq = 0.0f;
+        int sweep_peak_rssi = -128;
+
         for (int b = 0; b < kBandCount && !quit; b++) {
             for (float f = kBands[b].start; f <= kBands[b].end; f += kStepMhz) {
                 setMHZ(f);
@@ -73,9 +86,15 @@ void rf_band_scanner() {
                 int rssi = ELECHOUSE_cc1101.getRssi();
                 if (bruceConfigPins.CC1101_bus.mosi == TFT_MOSI) tft.drawPixel(0, 0, 0);
 
-                if (rssi > best_rssi) {
-                    best_rssi = rssi;
-                    best_freq = f;
+                // Running noise floor = quietest reading seen.
+                if (!floorInit || rssi < noise_floor) {
+                    noise_floor = rssi;
+                    floorInit = true;
+                }
+                // Loudest freq within this sweep.
+                if (rssi > sweep_peak_rssi) {
+                    sweep_peak_rssi = rssi;
+                    sweep_peak_freq = f;
                 }
 
                 // Throttle the redraw so per-step work stays short (and the
@@ -85,16 +104,22 @@ void rf_band_scanner() {
                     lastDraw = now;
                     tft.setTextSize(1);
                     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-                    tft.fillRect(kBlockX, kBaseY, kBlockW, kLineH * 5, bruceConfig.bgColor);
+                    tft.fillRect(kBlockX, kBaseY, kBlockW, kLineH * 6, bruceConfig.bgColor);
                     tft.setCursor(kBlockX, kBaseY);
                     tft.printf("Band %d/%d", b + 1, kBandCount);
                     tft.setCursor(kBlockX, kBaseY + kLineH);
-                    tft.printf("Now : %.2f MHz ", f);
+                    tft.printf("Now  : %.2f MHz ", f);
                     tft.setCursor(kBlockX, kBaseY + kLineH * 2);
-                    tft.printf("Best: %.2f MHz ", best_freq);
+                    tft.printf("Floor: %d dBm ", floorInit ? noise_floor : 0);
                     tft.setCursor(kBlockX, kBaseY + kLineH * 3);
-                    tft.printf("RSSI: %d dBm ", best_rssi);
+                    if (peak_active)
+                        tft.printf("Peak : %.2f MHz", peak_freq);
+                    else
+                        tft.print("Peak : scanning...   ");
                     tft.setCursor(kBlockX, kBaseY + kLineH * 4);
+                    if (peak_active) tft.printf("Signal: %d dBm ", peak_rssi);
+                    else tft.print("Signal: none         ");
+                    tft.setCursor(kBlockX, kBaseY + kLineH * 5);
                     tft.print("Press BACK to stop.");
                 }
 
@@ -106,6 +131,11 @@ void rf_band_scanner() {
                 }
             }
         }
+
+        // Commit this sweep's peak; it counts as activity only above the floor.
+        peak_freq = sweep_peak_freq;
+        peak_rssi = sweep_peak_rssi;
+        peak_active = floorInit && (sweep_peak_rssi > noise_floor + kActiveMarginDb);
     }
 
     returnToMenu = true;
