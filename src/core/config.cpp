@@ -69,6 +69,7 @@ JsonDocument BruceConfig::toJson() const {
     setting["startupAppJSInterpreterFile"] = startupAppJSInterpreterFile;
     setting["wigleBasicToken"] = wigleBasicToken;
     setting["geminiApiKey"] = geminiApiKey;
+    setting["groqApiKey"] = groqApiKey;
     setting["aiDebriefEnabled"] = aiDebriefEnabled;
     setting["aiEndpoint"] = aiEndpoint;
     setting["devMode"] = devMode;
@@ -376,6 +377,12 @@ void BruceConfig::fromFile(bool checkFS) {
         count++;
         log_e("Fail");
     }
+    if (!setting["groqApiKey"].isNull()) {
+        groqApiKey = setting["groqApiKey"].as<String>();
+    } else {
+        count++;
+        log_e("Fail");
+    }
     if (!setting["aiDebriefEnabled"].isNull()) {
         aiDebriefEnabled = setting["aiDebriefEnabled"].as<int>();
     } else {
@@ -442,6 +449,27 @@ void BruceConfig::fromFile(bool checkFS) {
     } else {
         count++;
         log_e("Fail to load qrCodes");
+    }
+
+    // FINALE one-time migration: older persisted configs hold only {VariOne AP,
+    // Rickroll} (or Bruce-era entries). If the curated VariOne set is missing the
+    // repo marker, reset qrCodes to the branded list (AP join, repo, site, Rickroll).
+    {
+        bool hasRepo = false;
+        for (const auto &q : qrCodes) {
+            if (q.menuName == "VariOne Repo") {
+                hasRepo = true;
+                break;
+            }
+        }
+        if (!hasRepo) {
+            qrCodes = {
+                {"VariOne AP", "WIFI:T:WPA;S:VariOne;P:varione1;;"},
+                {"VariOne Repo", "https://github.com/Ahmed-Ahmed16/variOne-2"},
+                {"VariOne Site", "https://varione.ai/"},
+                {"Rickroll", "https://youtu.be/dQw4w9WgXcQ"},
+            };
+        }
     }
 
     validateConfig();
@@ -764,6 +792,11 @@ void BruceConfig::setGeminiApiKey(String value) {
     saveFile();
 }
 
+void BruceConfig::setGroqApiKey(String value) {
+    groqApiKey = value;
+    saveFile();
+}
+
 void BruceConfig::setAiDebriefEnabled(int value) {
     aiDebriefEnabled = value ? 1 : 0;
     saveFile();
@@ -802,6 +835,12 @@ void BruceConfig::seedFromVarioneSecrets() {
 #if defined(VARIONE_GEMINI_KEY)
     if (geminiApiKey.isEmpty() && strlen(VARIONE_GEMINI_KEY) > 0) {
         geminiApiKey = VARIONE_GEMINI_KEY;
+        dirty = true;
+    }
+#endif
+#if defined(VARIONE_GROQ_KEY)
+    if (groqApiKey.isEmpty() && strlen(VARIONE_GROQ_KEY) > 0) {
+        groqApiKey = VARIONE_GROQ_KEY;
         dirty = true;
     }
 #endif

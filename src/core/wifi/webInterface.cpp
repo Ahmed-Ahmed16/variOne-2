@@ -59,17 +59,18 @@ static const char *AI_SETUP_FORM =
     "<form method='POST' action='/aisetup'>"
     "<label>Home WiFi name (SSID)</label><input name='ssid' autocomplete='off'>"
     "<label>WiFi password</label><input name='pwd' type='password' autocomplete='off'>"
-    "<label>Gemini API key</label><input name='key' autocomplete='off'>"
-    "<label>Local AI endpoint (optional)</label>"
+    "<label>Local AI endpoint (PRIMARY - your PC)</label>"
     "<input name='endpoint' autocomplete='off' placeholder='http://192.168.0.50:8000/'>"
+    "<label>Groq API key (cloud fallback 1)</label><input name='groqkey' autocomplete='off'>"
+    "<label>Gemini API key (cloud fallback 2)</label><input name='key' autocomplete='off'>"
     "<label><input type='checkbox' name='enable' value='1' style='width:auto;margin-right:6px'>"
     "Enable AI debrief</label>"
     "<button type='submit'>Save</button></form>"
-    "<div class='note'>Leave the endpoint blank to use the cloud (Gemini over HTTPS). Set it to a "
-    "LAN proxy URL to route via plain HTTP instead (no on-device TLS). "
-    "The WiFi pair is saved for STA auto-connect; the key is stored on-device only. "
-    "Only aggregate attack facts (counts/duration/SSID) are ever sent to Gemini &mdash; never "
-    "credentials, captures or card numbers.</div></div></body></html>";
+    "<div class='note'>The local endpoint (your PC, plain HTTP, no on-device TLS) is the MAIN "
+    "path and is tried first. If it is blank or unreachable the device falls back to the cloud "
+    "chain (Groq, then Gemini, over HTTPS). The WiFi pair is saved for STA auto-connect; keys are "
+    "stored on-device only. Only aggregate attack facts (counts/duration/SSID) are ever sent to "
+    "the AI provider &mdash; never credentials, captures or card numbers.</div></div></body></html>";
 
 // Generate random token
 String generateToken(int length = 24) {
@@ -500,19 +501,22 @@ void ensureWebServer() {
         String ssid = request->hasParam("ssid", true) ? request->getParam("ssid", true)->value() : "";
         String pwd = request->hasParam("pwd", true) ? request->getParam("pwd", true)->value() : "";
         String key = request->hasParam("key", true) ? request->getParam("key", true)->value() : "";
+        String groqkey =
+            request->hasParam("groqkey", true) ? request->getParam("groqkey", true)->value() : "";
         String endpoint =
             request->hasParam("endpoint", true) ? request->getParam("endpoint", true)->value() : "";
         bool enable = request->hasParam("enable", true);
 
         if (ssid.length()) bruceConfig.addWifiCredential(ssid, pwd);
         if (key.length()) bruceConfig.setGeminiApiKey(key);
+        if (groqkey.length()) bruceConfig.setGroqApiKey(groqkey);
         endpoint.trim();
         bruceConfig.setAiEndpoint(endpoint); // empty = cloud; set = local LAN
         bruceConfig.setAiDebriefEnabled(enable ? 1 : 0);
 
         Serial.printf(
-            "[AISETUP] saved ssid=%s keylen=%d endpoint=%s enable=%d\n", ssid.c_str(), (int)key.length(),
-            endpoint.c_str(), enable ? 1 : 0
+            "[AISETUP] saved ssid=%s geminilen=%d groqlen=%d endpoint=%s enable=%d\n", ssid.c_str(),
+            (int)key.length(), (int)groqkey.length(), endpoint.c_str(), enable ? 1 : 0
         );
         request->send(
             200, "text/html",

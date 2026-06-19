@@ -188,10 +188,22 @@ void ducky_startKb(HIDInterface *&hid, bool ble) {
             hid = new USBHIDKeyboard();
             USB.begin();
 
-            // Wait for USB subsystem to be ready
+            // Wait for the host to enumerate the HID device. On the S3 DevKitC-1
+            // this ONLY happens when the victim is plugged into the native "USB"
+            // (OTG) port — NOT the "UART"/CP2102 flashing port. Bound the wait and
+            // let BACK cancel so a wrong-port mistake can't hard-hang the device
+            // (the old loop spun on tud_mounted() forever with no escape).
+            uint32_t usbWaitT0 = millis();
             while (!tud_mounted()) {
-                printStatusBadUSBBLE("Waiting USB Host...");
-                delay(500);
+                if (millis() - usbWaitT0 < 6000)
+                    printStatusBadUSBBLE("Waiting USB Host...");
+                else
+                    printStatusBadUSBBLE("No host - use the USB (not UART) port. BACK=cancel");
+                if (check(EscPress)) {
+                    returnToMenu = true;
+                    return; // caller frees hid at EXIT
+                }
+                delay(150);
             }
 
             printStatusBadUSBBLE("USB Host Connected");

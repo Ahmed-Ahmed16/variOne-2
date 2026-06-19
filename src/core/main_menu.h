@@ -3,6 +3,7 @@
 
 #include <MenuItemInterface.h>
 
+#include "menu_items/BadUSBMenu.h"
 #include "menu_items/BleMenu.h"
 #include "menu_items/ClockMenu.h"
 #include "menu_items/ConfigMenu.h"
@@ -25,6 +26,7 @@ public:
     AppsMenu appsMenu;
     FileMenu fileMenu;
     BleMenu bleMenu;
+    BadUSBMenu badUsbMenu;
     ClockMenu clockMenu;
     ConnectMenu connectMenu;
     ConfigMenu configMenu;

@@ -82,10 +82,12 @@ public:
     String startupApp = "";
     String startupAppJSInterpreterFile = "";
     String wigleBasicToken = "";
-    // VariOne AI debrief (Gemini) — see src/modules/varione/debrief/ai_debrief.*
-    String geminiApiKey = "";    // AI Studio key
+    // VariOne AI debrief — see src/modules/varione/debrief/ai_debrief.*
+    // Provider order: aiEndpoint (optional LAN) -> Groq (primary) -> Gemini (fallback).
+    String geminiApiKey = "";    // AI Studio key (Gemini — FALLBACK provider)
+    String groqApiKey = "";      // Groq api.groq.com key (OpenAI-compatible — PRIMARY)
     int aiDebriefEnabled = 0;    // master toggle (opt-in cloud egress)
-    String aiEndpoint = "";      // empty = Gemini cloud; else local LAN URL (deferred)
+    String aiEndpoint = "";      // empty = use cloud chain; else local LAN URL (override)
     int devMode = 0;
     int colorInverted = 1;
     int badUSBBLEKeyboardLayout = 0;
@@ -95,8 +97,10 @@ public:
     std::vector<String> disabledMenus = {};
 
     std::vector<QrCodeEntry> qrCodes = {
-        {"VariOne AP", "WIFI:T:WPA;S:VariOne;P:varione1;;"},
-        {"Rickroll",   "https://youtu.be/dQw4w9WgXcQ"     }
+        {"VariOne AP",   "WIFI:T:WPA;S:VariOne;P:varione1;;"         },
+        {"VariOne Repo", "https://github.com/Ahmed-Ahmed16/variOne-2"},
+        {"VariOne Site", "https://varione.ai/"                       },
+        {"Rickroll",     "https://youtu.be/dQw4w9WgXcQ"             }
     };
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -178,6 +182,7 @@ public:
     void setStartupAppJSInterpreterFile(String value);
     void setWigleBasicToken(String value);
     void setGeminiApiKey(String value);
+    void setGroqApiKey(String value);
     void setAiDebriefEnabled(int value);
     void setAiEndpoint(String value);
     void seedFromVarioneSecrets();

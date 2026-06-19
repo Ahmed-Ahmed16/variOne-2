@@ -26,9 +26,10 @@ MainMenu::MainMenu() {
 #if defined(FM_SI4713) && !defined(LITE_VERSION)
         &fmMenu,
 #endif
-        &fileMenu,
         &gpsMenu,
         &nrf24Menu,
+        &badUsbMenu, // FINALE: standalone BadUSB feature, ordered NRF -> BadUSB -> Files
+        &fileMenu,
 #if !defined(LITE_VERSION)
 #if !defined(DISABLE_INTERPRETER)
         &scriptsMenu,

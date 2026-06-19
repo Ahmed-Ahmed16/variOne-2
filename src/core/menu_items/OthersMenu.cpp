@@ -21,10 +21,10 @@ void OthersMenu::optionsMenu() {
         {"Microphone",   [this]() { micMenu(); }      }, //@deveclipse
 #endif
 
-// New consolidated BadUSB & HID submenu
+// Remaining USB HID tools (BadUSB itself is now a standalone top-level feature)
 #if !defined(LITE_VERSION)
 #if defined(USB_as_HID)
-        {"BadUSB & HID", [this]() { badUsbHidMenu(); }},
+        {"USB HID Tools", [this]() { badUsbHidMenu(); }},
 #endif
 #endif
 
@@ -41,8 +41,9 @@ void OthersMenu::optionsMenu() {
 
 void OthersMenu::badUsbHidMenu() {
     options = {
+// BadUSB is promoted to a standalone top-level feature (BadUSBMenu); this submenu
+// keeps the remaining USB HID tools only.
 #ifndef LITE_VERSION
-        {"BadUSB",       [=]() { ducky_setup(hid_usb, false); }   },
         {"USB Keyboard", [=]() { ducky_keyboard(hid_usb, false); }},
 #endif
 
@@ -54,7 +55,7 @@ void OthersMenu::badUsbHidMenu() {
         {"Back",         [this]() { optionsMenu(); }              },
     };
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "BadUSB & HID");
+    loopOptions(options, MENU_TYPE_SUBMENU, "USB HID Tools");
 }
 
 void OthersMenu::micMenu() {

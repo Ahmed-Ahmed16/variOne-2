@@ -302,7 +302,7 @@ void wifi_atk_menu() {
     bool scanAtks = false;
     options = {
         {"Target Atks",  [&]() { scanAtks = true; }    },
-#ifndef LITE_VERSION
+#if !defined(LITE_VERSION) && !defined(VARIONE_HIDE_KARMA)
         {"Karma Attack", [=]() { karma_setup(); }      },
 #endif
         {"Beacon SPAM",  [=]() { beaconAttack(); }     },

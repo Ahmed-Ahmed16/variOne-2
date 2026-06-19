@@ -15,6 +15,16 @@ static const char *GEMINI_HOST = "generativelanguage.googleapis.com";
 // the legacy ?key= query param is not used.
 static const char *GEMINI_PATH = "/v1beta/models/gemini-2.0-flash:generateContent";
 
+// ---- Groq cloud endpoint (OpenAI-compatible) — PRIMARY provider ------------
+// api.groq.com speaks the OpenAI chat-completions shape; the key is a Bearer
+// token. Owner pivoted here because Gemini hits 429 quota. Reply parsed from
+// choices[0].message.content by parseAiText.
+static const char *GROQ_HOST = "api.groq.com";
+static const char *GROQ_PATH = "/openai/v1/chat/completions";
+#ifndef GROQ_MODEL
+#define GROQ_MODEL "llama-3.3-70b-versatile" // current Groq production model
+#endif
+
 // Shared system instruction — pins tone for every attack template.
 static const char *SYSTEM_TONE =
     "You are a friendly security-awareness coach writing a short post-exercise "
@@ -94,6 +104,8 @@ static String parseAiText(const String &payload) {
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
         const char *t = doc["candidates"][0]["content"]["parts"][0]["text"];
         if (t) return String(t);
+        const char *c = doc["choices"][0]["message"]["content"]; // OpenAI / Groq
+        if (c) return String(c);
         const char *r = doc["response"]; // Ollama
         if (r) return String(r);
         const char *x = doc["text"]; // generic proxy
@@ -162,6 +174,59 @@ static String geminiCloudGenerate(const String &prompt) {
     return parseAiText(payload);
 }
 
+// ---- cloud (Groq over HTTPS, OpenAI-compatible) — PRIMARY ------------------
+// Mirrors geminiCloudGenerate's proven TLS path (WiFiClientSecure + setInsecure,
+// PSRAM-backed mbedTLS buffers). Body: {"model","messages":[{role,content}]}.
+static String groqCloudGenerate(const String &prompt) {
+    if (bruceConfig.groqApiKey.isEmpty()) {
+        Serial.println("[AI] no Groq API key configured");
+        return "";
+    }
+
+    JsonDocument reqDoc;
+    reqDoc["model"] = GROQ_MODEL;
+    reqDoc["messages"][0]["role"] = "user";
+    reqDoc["messages"][0]["content"] = prompt;
+    String body;
+    serializeJson(reqDoc, body);
+
+    // Reclaim the WiFi scan buffers before the TLS handshake needs large blocks.
+    WiFi.scanDelete();
+
+    String url = String("https://") + GROQ_HOST + GROQ_PATH;
+
+    String payload;
+    int status = -1;
+    for (int attempt = 1; attempt <= 3 && status != 200; attempt++) {
+        WiFiClientSecure client;
+        client.setInsecure(); // same trust model as the Gemini path
+        HTTPClient https;
+        https.setTimeout(20000); // ms
+        if (!https.begin(client, url)) {
+            Serial.printf("[AI] groq attempt %d: https.begin() failed\n", attempt);
+            delay(300);
+            continue;
+        }
+        https.addHeader("Content-Type", "application/json");
+        https.addHeader("Authorization", String("Bearer ") + bruceConfig.groqApiKey);
+        status = https.POST(body);
+        if (status == 200) {
+            payload = https.getString();
+        } else {
+            Serial.printf(
+                "[AI] groq attempt %d: HTTP %d (heap=%u)\n", attempt, status,
+                (unsigned)ESP.getFreeHeap()
+            );
+            String err = https.getString();
+            if (err.length()) Serial.println("[AI] body: " + err.substring(0, 200));
+        }
+        https.end();
+        if (status != 200) delay(400);
+    }
+    if (status != 200) return "";
+    return parseAiText(payload);
+}
+
 // ---- local LAN (plain HTTP to aiEndpoint) ---------------------------------
 // No TLS → no mbedTLS buffers → works in the tight internal heap. The endpoint
 // is a LAN box (a proxy that forwards to Gemini, or an Ollama-style server).
@@ -210,14 +275,26 @@ static String localGenerate(const String &prompt) {
 }
 
 // ---- backend dispatch ------------------------------------------------------
-// aiEndpoint set → local LAN (plain HTTP, no TLS); empty → cloud Gemini (HTTPS).
+// Provider chain, each step returns "" on ANY failure and falls through:
+//   1. aiEndpoint (optional manual LAN override, plain HTTP — e.g. a PC proxy)
+//   2. Groq cloud (PRIMARY, HTTPS)
+//   3. Gemini cloud (FALLBACK, HTTPS)
+// Final "" → caller renders the canned/deterministic report.
 static String backendGenerate(const String &prompt) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[AI] STA not connected — cannot reach AI backend");
         return "";
     }
-    if (!bruceConfig.aiEndpoint.isEmpty()) return localGenerate(prompt);
-    return geminiCloudGenerate(prompt);
+    String out;
+    if (!bruceConfig.aiEndpoint.isEmpty()) {
+        out = localGenerate(prompt);
+        if (!out.isEmpty()) return out;
+        Serial.println("[AI] local endpoint empty → Groq");
+    }
+    out = groqCloudGenerate(prompt); // primary
+    if (!out.isEmpty()) return out;
+    Serial.println("[AI] Groq empty → Gemini fallback");
+    return geminiCloudGenerate(prompt); // fallback
 }
 
 // ---- public API ------------------------------------------------------------
