@@ -77,6 +77,12 @@ void rf_band_scanner() {
         for (int b = 0; b < kBandCount && !quit; b++) {
             for (float f = kBands[b].start; f <= kBands[b].end; f += kStepMhz) {
                 setMHZ(f);
+                // setMHZ() only writes the FREQ registers — the synthesizer does
+                // NOT retune/recalibrate until RX is re-strobed. Without this the
+                // radio kept listening on the start freq, so RSSI never tracked f
+                // (root of both "frozen at 300" and "scanner sees nothing"). SRX
+                // with FS_AUTOCAL recalibrates on the new frequency.
+                ELECHOUSE_cc1101.SetRx();
                 // Keep CC1101/TFT shared-SPI happy, then let the radio settle.
                 if (bruceConfigPins.CC1101_bus.mosi == TFT_MOSI) {
                     tft.drawPixel(0, 0, 0);
