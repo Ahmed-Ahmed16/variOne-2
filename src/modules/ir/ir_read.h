@@ -51,6 +51,7 @@ private:
     /////////////////////////////////////////////////////////////////////////////////////
     void begin();
     void read_signal();
+    void replay_signal();
     void save_device();
     void save_signal();
     void discard_signal();

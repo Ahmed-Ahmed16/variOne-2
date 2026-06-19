@@ -762,6 +762,9 @@ bool chooseCmdIrFile(FS *fs, String filepath) {
         // Short press: going back to file browser, NOT to main menu
         // Reset returnToMenu so loopOptions chain doesn't cascade-exit everything
         returnToMenu = false;
+        // Redraw a clean frame so the file browser doesn't return to a blank
+        // screen left behind by the code menu (issue 13).
+        drawMainBorder();
     }
     // true  = go to main menu (long press or "Main Menu" item selected)
     // false = go back to file browser (short Esc press)

@@ -12,6 +12,7 @@
 #include "core/mykeyboard.h"
 #include "core/sd_functions.h"
 #include "core/settings.h"
+#include "custom_ir.h" // sendRawCommand() — immediate on-the-spot replay
 #include "ir_utils.h"
 #include <IRrecv.h>
 #include <IRutils.h>
@@ -133,6 +134,7 @@ void IrRead::loop() {
 #endif
             break;
         }
+        if (check(UpPress)) replay_signal();
         if (check(NextPress)) save_signal();
         if (quickloop && button_pos == quickButtons.size()) save_device();
         if (check(SelPress)) save_device();
@@ -179,6 +181,7 @@ void IrRead::display_btn_options() {
     tft.println("");
     tft.println("");
     if (_read_signal) {
+        padprintln("Press [UP]   to replay signal");
         padprintln("Press [PREV] to discard signal");
         padprintln("Press [NEXT] to save signal");
     }
@@ -205,6 +208,24 @@ void IrRead::read_signal() {
 
     display_btn_options();
     delay(500);
+}
+
+void IrRead::replay_signal() {
+    // Capture+replay on the spot: re-transmit the just-captured signal through
+    // the existing IR TX path without any SD save/browse round-trip (issue 15).
+    if (!_read_signal) return;
+    String raw_signal = parse_raw_signal();
+    if (raw_signal.isEmpty()) return;
+
+    setup_ir_pin(bruceConfigPins.irTx, OUTPUT);
+    sendRawCommand(IR_FREQUENCY, raw_signal, true); // hideDefaultUI: keep our screen
+    // Re-arm RX for the next capture and restore the read UI.
+    setup_ir_pin(bruceConfigPins.irRx, INPUT_PULLUP);
+    display_banner();
+    padprintln("Signal replayed!");
+    tft.println("");
+    display_btn_options();
+    delay(300);
 }
 
 void IrRead::discard_signal() {
