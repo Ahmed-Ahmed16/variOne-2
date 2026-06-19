@@ -11,6 +11,7 @@
 #include "core/wifi/webInterface.h" // shared port-80 server (webDebriefBegin/End)
 #include "core/wifi/wifi_common.h"
 #include <DNSServer.h>
+#include <esp_netif.h> // DIAGNOSTIC: read AP DHCP server state (no behavior change)
 #include <FS.h>
 #include <SD.h>
 #include <WiFi.h>
@@ -404,6 +405,20 @@ static void serveReportLoop() {
     String apSsid = bruceConfig.wifiAp.ssid;
     if (apSsid.isEmpty()) apSsid = "VariOne";
     Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
+
+    // DIAGNOSTIC ONLY (no behavior change) — confirms the dead-DHCP root cause
+    // documented in DEBRIEF_WIFI_FINDINGS.md. If dhcps_state is not STARTED (1),
+    // the AP beacons but cannot lease an IP, so a joined phone never gets one and
+    // drops. Prints the AP netif handle so we can see if it is reused vs fresh.
+    {
+        esp_netif_t *apDiag = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        esp_netif_dhcp_status_t dhcpSt = ESP_NETIF_DHCP_INIT;
+        if (apDiag) esp_netif_dhcps_get_status(apDiag, &dhcpSt);
+        Serial.printf(
+            "[DEBRIEF][diag] ap_netif=%p dhcps_state=%d (1=STARTED 2=STOPPED)\n",
+            (void *)apDiag, (int)dhcpSt
+        );
+    }
 
     s_dnsServer.start(53, "*", apIP); // catch-all DNS -> captive portal
 
