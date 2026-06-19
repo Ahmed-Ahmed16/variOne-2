@@ -24,6 +24,10 @@ void showVemoStatus(const String &message, VemoStatus status = VemoStatus::Scan,
 void beginVemoScan(const String &message, const String &footerHint = "");
 void updateVemoScanText(const String &message);
 
+// Boot splash: zoom-in "pop" of the Vemo mascot (small -> large), then the
+// VARIONE wordmark + motto. Skippable by any key. No-op without a screen.
+void vemoBootSplash();
+
 // RSSI (dBm) -> friendly 0..4 bar glyph string, e.g. "[||..]". Used in scan result
 // rows instead of raw dBm for awareness demos (plan Tier-1 chrome).
 String rssiBars(int rssiDbm);

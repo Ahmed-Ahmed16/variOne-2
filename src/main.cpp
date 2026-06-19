@@ -155,6 +155,7 @@ volatile int tftHeight = VECTOR_DISPLAY_DEFAULT_WIDTH;
 #include "modules/bjs_interpreter/interpreter.h" // for JavaScript interpreter
 #include "modules/others/audio.h"                // for playAudioFile
 #include "modules/rf/rf_utils.h"                 // for initCC1101once
+#include "modules/varione/ui/vemo_status.h"      // for vemoBootSplash()
 #include <Wire.h>
 
 /*********************************************************************
@@ -496,7 +497,11 @@ void setup() {
 #if defined(HAS_SCREEN)
     bruceConfig.openThemeFile(bruceConfig.themeFS(), bruceConfig.themePath, false);
     if (!bruceConfig.instantBoot) {
+#if defined(VARIONE_VEMO_UI)
+        VariOneUI::vemoBootSplash(); // Vemo zoom-in pop splash (skippable by any key)
+#else
         boot_screen_anim();
+#endif
         startup_sound();
     }
     if (bruceConfig.wifiAtStartup) {

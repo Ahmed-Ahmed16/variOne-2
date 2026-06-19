@@ -208,6 +208,52 @@ void updateVemoScanText(const String &message) {
 #endif
 }
 
+void vemoBootSplash() {
+#ifndef HAS_SCREEN
+    Serial.println("VEMO boot splash");
+#else
+    const int cx = tftWidth / 2;
+    const int cy = 58;
+    const int sFinal = (tftWidth < tftHeight ? tftWidth : tftHeight) * 70 / 100;
+
+    // Zoom-in pop: ramp the vector head small -> large. Any key skips straight
+    // to the settled frame.
+    bool skipped = false;
+    for (int s = 12; s <= sFinal; s += 6) {
+        tft.fillScreen(bruceConfig.bgColor);
+        drawVemoFace(cx, cy, s, Mood::Success); // Success = smiling/happy Vemo
+        if (check(AnyKeyPress)) {
+            skipped = true;
+            break;
+        }
+        delay(18);
+    }
+
+    // Settle on the final happy face + wordmark + motto.
+    tft.fillScreen(bruceConfig.bgColor);
+    drawVemoFace(cx, cy, sFinal, Mood::Success);
+
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    tft.setTextSize(FM);
+    tft.drawString("VARIONE", cx, 118);
+    tft.setTextSize(FP);
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+    tft.drawString("Tiny outside.", cx, 134);
+    tft.drawString("Powerful inside.", cx, 146);
+    tft.setTextDatum(TL_DATUM);
+
+    // Hold briefly so the wordmark reads; any key cuts it short.
+    if (!skipped) {
+        uint32_t hold = millis() + 1400;
+        while (millis() < hold) {
+            if (check(AnyKeyPress)) break;
+            delay(20);
+        }
+    }
+#endif
+}
+
 void drawVemoSleep() {
 #ifndef HAS_SCREEN
     Serial.println("VEMO idle: sleeping");
