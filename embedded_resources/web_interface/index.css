@@ -632,3 +632,33 @@ svg > path {
     transform: rotate(360deg);
   }
 }
+/* --- mobile: stop header buttons overflowing past the panel edge --- */
+@media (max-width: 600px) {
+  .container .header {
+    flex-wrap: wrap;
+  }
+  .container .header .title {
+    width: 100%;
+    justify-content: center;
+    border-bottom: 1px solid var(--vo-border);
+  }
+  .left-part,
+  .right-part {
+    margin: 0;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .left-part {
+    border-left: 0;
+  }
+  .right-part {
+    border-left: 1px solid var(--vo-border);
+    text-align: center;
+  }
+  .container .header button {
+    width: 100%;
+    margin: 0;
+  }
+}

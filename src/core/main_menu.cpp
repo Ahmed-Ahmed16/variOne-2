@@ -29,6 +29,7 @@ MainMenu::MainMenu() {
         &gpsMenu,
         &nrf24Menu,
         &badUsbMenu, // FINALE: standalone BadUSB feature, ordered NRF -> BadUSB -> Files
+        &webuiMenu,  // FINALE: WebUI promoted to top-level feature, ordered before Files
         &fileMenu,
 #if !defined(LITE_VERSION)
 #if !defined(DISABLE_INTERPRETER)

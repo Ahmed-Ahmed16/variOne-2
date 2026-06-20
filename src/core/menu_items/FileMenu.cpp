@@ -9,7 +9,7 @@ void FileMenu::optionsMenu() {
     options.clear();
     if (setupSdCard()) options.push_back({"SD Card", [=]() { loopSD(SD); }});
     options.push_back({"LittleFS", [=]() { loopSD(LittleFS); }});
-    options.push_back({"WebUI", loopOptionsWebUi});
+    // WebUI promoted to a top-level main-menu feature (see WebUIMenu) — no longer here.
 
 #if defined(SOC_USB_OTG_SUPPORTED)
     options.push_back({"Mount Storage", [=]() { MassStorage(); }});
