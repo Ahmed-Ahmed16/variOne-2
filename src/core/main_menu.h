@@ -21,9 +21,11 @@
 #include "menu_items/ScriptsMenu.h"
 #include "menu_items/WifiMenu.h"
 #include "menu_items/AppsMenu.h"
+#include "menu_items/WebUIMenu.h"
 class MainMenu {
 public:
     AppsMenu appsMenu;
+    WebUIMenu webuiMenu;
     FileMenu fileMenu;
     BleMenu bleMenu;
     BadUSBMenu badUsbMenu;

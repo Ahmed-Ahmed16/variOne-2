@@ -265,8 +265,8 @@ static String buildReportHtml(const DebriefFacts &f, const String &aiText = "") 
     h += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
     h += "<title>VariOne Debrief</title><style>";
     // --- brand tokens ---
-    h += ":root{--bg:#0a0e13;--panel:#111923;--panel2:#0e151e;--bd:#1d2a39;"
-         "--tx:#e9f1f8;--mut:#8a99ab;--cy:#5fd0ff;--cy2:#2bb7e6;--navy:#192a3a}";
+    h += ":root{--bg:#070b10;--panel:#101a25;--panel2:#0c141d;--bd:#1b2a3a;"
+         "--tx:#e9f1f8;--mut:#8597aa;--cy:#5fd0ff;--cy2:#2bb7e6;--navy:#192a3a}";
     h += "*{box-sizing:border-box}";
     h += "body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,sans-serif;margin:0;"
          "background:radial-gradient(1200px 600px at 50% -10%,#13202e 0%,var(--bg) 60%);"

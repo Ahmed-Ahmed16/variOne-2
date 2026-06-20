@@ -4,15 +4,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bruce</title>
+    <title>VariOne</title>
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101a25'/%3E%3Cpath d='M8 9 L16 23 L24 9' fill='none' stroke='%235fd0ff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/index.css">
     <link rel="stylesheet" href="/theme.css">
+    <style>
+        .dialog.login {
+            min-width: 300px;
+        }
+        .login-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 22px 14px 6px;
+        }
+        .login-brand .wm {
+            font-weight: 800;
+            letter-spacing: 2px;
+            font-size: 22px;
+            color: var(--vo-text);
+        }
+        .login-brand .wm i {
+            color: var(--vo-cyan);
+            font-style: normal;
+        }
+        .login-brand .sub {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--vo-text-muted);
+        }
+        /* keep the Vemo muzzle stroke-only; exempt from global icon fill rule */
+        .login-brand svg path {
+            fill: none;
+        }
+    </style>
 </head>
 
 <body>
     <div class="dialog-background">
         <form action="/login" method="POST">
             <div class="dialog login">
+                <div class="login-brand">
+                    <svg width="54" height="54" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true">
+                        <circle cx="22" cy="24" r="13" fill="#192a3a" />
+                        <circle cx="22" cy="24" r="6" fill="#fff" />
+                        <circle cx="78" cy="24" r="13" fill="#192a3a" />
+                        <circle cx="78" cy="24" r="6" fill="#fff" />
+                        <rect x="14" y="18" width="72" height="66" rx="20" fill="#fff" stroke="#192a3a"
+                            stroke-width="3" />
+                        <rect x="20" y="38" width="60" height="22" rx="11" fill="#192a3a" />
+                        <circle cx="37" cy="49" r="6" fill="#5fd0ff" />
+                        <circle cx="35" cy="47" r="2" fill="#fff" />
+                        <circle cx="63" cy="49" r="6" fill="#5fd0ff" />
+                        <circle cx="61" cy="47" r="2" fill="#fff" />
+                        <path d="M44 66 L50 74 L56 66" fill="none" stroke="#5fd0ff" stroke-width="3"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <span class="wm">VAR<i>I</i>ONE</span>
+                    <span class="sub">Device Access</span>
+                </div>
                 <div class="dialog-head">
                     Login
                 </div>
