@@ -1,0 +1,47 @@
+REM VariOne BadUSB Art Showcase (fast demo reveal)
+DEFAULTSTRINGDELAY 0
+GUI r
+DELAY 400
+STRINGLN notepad.exe
+DELAY 600
+STRINGLN           _______  _______ _________ _______  _        _______
+STRINGLN |\     /|(  ___  )(  ____ )\__   __/(  ___  )( (    /|(  ____ \
+STRINGLN | )   ( || (   ) || (    )|   ) (   | (   ) ||  \  ( || (    \/
+STRINGLN | |   | || (___) || (____)|   | |   | |   | ||   \ | || (__
+STRINGLN ( (   ) )|  ___  ||     __)   | |   | |   | || (\ \) ||  __)
+STRINGLN  \ \_/ / | (   ) || (\ (      | |   | |   | || | \   || (
+STRINGLN   \   /  | )   ( || ) \ \_____) (___| (___) || )  \  || (____/\
+STRINGLN    \_/   |/     \||/   \__/\_______/(_______)|/    )_)(_______/
+STRINGLN 
+STRINGLN 
+STRINGLN                            .oo.oo.
+STRINGLN   .oooooo. ..             .oooooooo
+STRINGLN  oooooMoo.                   .oMMoM.
+STRINGLN  MMoMM.                        .oMM
+STRINGLN  oMMo       ..         .ooooo.   o.
+STRINGLN   .o    .oMMMMMMooooooMMMMMMMMM.  .
+STRINGLN   ..   oMMMMMMMMMMMMMMMMMo..oMMM.  .      ooo...
+STRINGLN   o   .MMMM....oMMMMMMMM. oo..MMM  .  ...oooMooM.
+STRINGLN   .   oMMM .MMo.oMMMMMMMoMMMMMMMM  .  oooMooooMMoo
+STRINGLN   .   .MMMMMMMMMMMoo..oooMMMMMMo   .  ooooooooooo.
+STRINGLN   o    .oMMMMoo. .oooooo          .. oMMoooooooM
+STRINGLN   ..             oMMMMMo         .o..oooMMooooo.
+STRINGLN     ...            ...        ..oo    oooMMMM.
+STRINGLN       ......             ...ooMMM      .ooMM.
+STRINGLN        oMMMooooooooooooooo....MMo       ...
+STRINGLN      .oMoMMo....              .MMo.......
+STRINGLN    ..  .oMo                    oMMo..
+STRINGLN   .     .M      ..        .    ..
+STRINGLN  o.     oo.      ..  .    .    .o
+STRINGLN .MMoooooMMMo.     ...        .oMM
+STRINGLN oMoooooMoMMMo.              .ooMo
+STRINGLN MMooooooo.ooo.              ..oo
+STRINGLN .MMooMMoo oooo..          ..oooo
+STRINGLN  .ooMM.   . ..oooooo..oooooo.  .
+STRINGLN          ..     ..o.  oo..     .
+STRINGLN          oo....   ..  ..   ....o.
+STRINGLN        .ooooooooooo   .ooooooooooo
+STRINGLN        MMoooooooMMM   .MMMoooooooM.
+STRINGLN        .ooooooooo.     .oooooooooo
+ENTER
+STRINGLN -- VariOne | CIC New Cairo

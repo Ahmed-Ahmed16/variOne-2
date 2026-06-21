@@ -1,0 +1,16 @@
+REM VariOne BadUSB Art Showcase (fast demo reveal)
+DEFAULTSTRINGDELAY 0
+GUI r
+DELAY 400
+STRINGLN notepad.exe
+DELAY 600
+STRINGLN           _______  _______ _________ _______  _        _______
+STRINGLN |\     /|(  ___  )(  ____ )\__   __/(  ___  )( (    /|(  ____ \
+STRINGLN | )   ( || (   ) || (    )|   ) (   | (   ) ||  \  ( || (    \/
+STRINGLN | |   | || (___) || (____)|   | |   | |   | ||   \ | || (__
+STRINGLN ( (   ) )|  ___  ||     __)   | |   | |   | || (\ \) ||  __)
+STRINGLN  \ \_/ / | (   ) || (\ (      | |   | |   | || | \   || (
+STRINGLN   \   /  | )   ( || ) \ \_____) (___| (___) || )  \  || (____/\
+STRINGLN    \_/   |/     \||/   \__/\_______/(_______)|/    )_)(_______/
+ENTER
+STRINGLN -- VariOne | CIC New Cairo
