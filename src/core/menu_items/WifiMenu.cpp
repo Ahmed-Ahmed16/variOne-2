@@ -8,9 +8,11 @@
 #include "core/wifi/wifi_mac.h"
 #include "modules/ethernet/ARPScanner.h"
 #include "modules/wifi/ap_info.h"
+#include "modules/wifi/channel_graph.h"
 #include "modules/wifi/clients.h"
 #include "modules/wifi/evil_portal.h"
 #include "modules/wifi/karma_attack.h"
+#include "modules/wifi/phone_probe.h"
 #include "modules/wifi/responder.h"
 #include "modules/wifi/scan_hosts.h"
 #include "modules/wifi/sniffer.h"
@@ -73,6 +75,8 @@ void WifiMenu::optionsMenu() {
     options.push_back({"SSH", lambdaHelper(ssh_setup, String(""))});
 #endif
     options.push_back({"Sniffer", sniffer_setup});
+    options.push_back({"Channel Graph", wifi_channel_graph});
+    options.push_back({"Phone Probes", wifi_phone_probe});
     options.push_back({"Scan Hosts", [=]() {
                            bool doScan = true;
                            if (!wifiConnected) doScan = wifiConnectMenu();

@@ -517,22 +517,6 @@ void capture_handshake(String tssid, String mac, uint8_t channel) {
     memcpy(targetBssid, bssid_array, 6);
     ap_record.primary = channel;
 
-    String encryptionTypeStr = "Unknown";
-    for (int i = 0; i < ap_records.size(); i++) {
-        if (memcmp(ap_records[i].bssid, bssid_array, 6) == 0) {
-            switch (ap_records[i].authmode) {
-                case WIFI_AUTH_OPEN: encryptionTypeStr = "Open"; break;
-                case WIFI_AUTH_WEP: encryptionTypeStr = "WEP"; break;
-                case WIFI_AUTH_WPA_PSK: encryptionTypeStr = "WPA/PSK"; break;
-                case WIFI_AUTH_WPA2_PSK: encryptionTypeStr = "WPA2/PSK"; break;
-                case WIFI_AUTH_WPA_WPA2_PSK: encryptionTypeStr = "WPA/WPA2/PSK"; break;
-                case WIFI_AUTH_WPA2_ENTERPRISE: encryptionTypeStr = "WPA2/Enterprise"; break;
-                default: encryptionTypeStr = "Unknown"; break;
-            }
-            break;
-        }
-    }
-
     // Sanitize SSID for use in filename
     String sanitizedSsid = "";
     for (size_t i = 0; i < tssid.length() && i < 32; ++i) {
@@ -691,48 +675,35 @@ void capture_handshake(String tssid, String mac, uint8_t channel) {
         if (needRedraw) {
             drawMainBorderWithTitle("Handshake Capture");
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-            padprintln("");
+            // FINALE: compact layout for the small panel. No blank spacers, no
+            // indent, and the four EAPOL flags collapse to a single line so the
+            // body never overflows into the footer hints.
             padprintln("SSID: " + tssid);
             padprintln("BSSID: " + mac);
-            padprintln("Security: " + encryptionTypeStr);
-            padprintln("");
+
+            // One-line EAPOL summary: M1 M2 M3 M4 as Y/-.
+            String eapol = "EAPOL: 1" + String(hsTracker.msg1 ? "Y" : "-") + " 2" +
+                           String(hsTracker.msg2 ? "Y" : "-") + " 3" + String(hsTracker.msg3 ? "Y" : "-") +
+                           " 4" + String(hsTracker.msg4 ? "Y" : "-");
 
             // Show console status
             if (hasBeacons && handshakeUsable(hsTracker)) {
                 tft.setTextColor(TFT_GREEN, bruceConfig.bgColor);
                 padprintln("Status: CAPTURED!");
-                padprintln("");
-                tft.setTextColor(hsTracker.msg1 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 1: " + String(hsTracker.msg1 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg2 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 2: " + String(hsTracker.msg2 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg3 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 3: " + String(hsTracker.msg3 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg4 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 4: " + String(hsTracker.msg4 ? "Captured" : "None"));
+                padprintln(eapol);
                 tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             } else if (hasBeacons) {
                 tft.setTextColor(TFT_YELLOW, bruceConfig.bgColor);
-                padprintln("Status: Beacon captured");
-                padprintln("");
-                tft.setTextColor(hsTracker.msg1 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 1: " + String(hsTracker.msg1 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg2 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 2: " + String(hsTracker.msg2 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg3 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 3: " + String(hsTracker.msg3 ? "Captured" : "None"));
-                tft.setTextColor(hsTracker.msg4 ? TFT_GREEN : TFT_RED, bruceConfig.bgColor);
-                padprintln("        EAPOL MSG 4: " + String(hsTracker.msg4 ? "Captured" : "None"));
+                padprintln("Status: Beacon");
                 tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+                padprintln(eapol);
             } else {
                 tft.setTextColor(TFT_YELLOW, bruceConfig.bgColor);
                 padprintln("Status: Waiting...");
                 tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             }
 
-            padprintln("");
             padprintln("Deauth sent: " + String(deauthCount));
-            padprintln("");
             tft.drawRightString(
                 "Press " + String(BTN_ALIAS) + " to send deauth", tftWidth - 10, tftHeight - 35, 1
             );

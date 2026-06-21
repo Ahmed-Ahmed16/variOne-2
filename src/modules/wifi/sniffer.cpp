@@ -1102,14 +1102,14 @@ void sniffer_setup() {
             esp_wifi_set_promiscuous_rx_cb(sniffer);
         }
 
-#if defined(HAS_KEYBOARD) || defined(T_EMBED)
-        // T-Embed has a different btn for Escape, different from StickCs that uses Previous btn
+        // Global BACK: exit the sniffer directly (matches VariPortal/feature
+        // convention). On boards where Esc == Previous (e.g. StickC) the UP
+        // long-press above already handles exit; here BACK is its own button.
         if (check(EscPress)) {
             returnToMenu = true;
             _pcap_file.close();
             break;
         }
-#endif
 
         if (check(SelPress)) { // pressed ok - show menu
             options = {
