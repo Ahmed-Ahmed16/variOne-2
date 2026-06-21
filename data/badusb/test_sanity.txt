@@ -1,0 +1,11 @@
+REM VariOne BadUSB sanity test
+DELAY 2000
+GUI r
+DELAY 600
+STRING notepad
+ENTER
+DELAY 1200
+STRING === VariOne BadUSB Test ===
+ENTER
+STRING Device enumerated as HID keyboard successfully.
+ENTER
