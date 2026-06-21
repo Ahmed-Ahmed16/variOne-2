@@ -54,3 +54,18 @@ scratch/
 Documentation/
 # Root LaTeX build outputs
 /lastTEST.*
+
+# Dev clutter + AI-assistant artifacts — kept on disk, out of the public default branch
+handoffs/
+.claude/
+.vscode/
+# loose root planning / session notes
+/2.0_road_path.md
+/DEBRIEF_WIFI_FINDINGS.md
+/HW_TEST_PLAN.md
+/LAYOUT.md
+/UI_REVAMP_PLAN.md
+/VARIONE_REVAMP_PLAN.md
+# docs/ working notes (keep docs/ dir for real docs)
+docs/handoff_debrief-wifi_next.md
+docs/varione-features-plan.md
