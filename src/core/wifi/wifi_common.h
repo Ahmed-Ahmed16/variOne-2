@@ -25,8 +25,14 @@ bool wifiConnectMenu(wifi_mode_t = WIFI_MODE_STA);
  * @param mode connection mode(void)
  * @note This is the primary entry point for establishing connections in the Headless environment
  * @note returns true if connected successfully
+ * @param startNtpTask when true (default) spawn the detached background NTP
+ *        clock-sync task on success. Callers that immediately drive their own
+ *        foreground network I/O over a short-lived STA session (e.g. the AI
+ *        debrief) MUST pass false: a second, unsynchronized task touching the
+ *        lwIP UDP/DNS stack concurrently trips IDF 5.5's TCPIP core-lock assert
+ *        (`udp_remove ... Required to lock TCPIP core functionality!`).
  */
-bool wifiConnecttoKnownNet(void);
+bool wifiConnecttoKnownNet(bool startNtpTask = true);
 
 /**
  * @brief returns MAC adress

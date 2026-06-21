@@ -317,7 +317,7 @@ String aiGenerateDebrief(const DebriefFacts &f) {
 
 bool aiDebriefSmokeTest() {
     Serial.println("[AI][smoke] connecting to a known WiFi network...");
-    if (WiFi.status() != WL_CONNECTED && !wifiConnecttoKnownNet()) {
+    if (WiFi.status() != WL_CONNECTED && !wifiConnecttoKnownNet(false)) { // no bg NTP race
         Serial.println("[AI][smoke] FAILED: no known network connected");
         return false;
     }

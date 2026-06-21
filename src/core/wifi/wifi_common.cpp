@@ -69,8 +69,9 @@ bool _wifiConnect(const String &ssid, int encryption) {
         wifiIP = WiFi.localIP().toString();
         bruceConfig.addWifiCredential(ssid, password);
 
-        // Start timezone update in background if not already running
-        if (timezoneTaskHandle == NULL) {
+        // Start timezone update in background if not already running.
+        // Skipped when the user opted for manual time (automaticTimeUpdateViaNTP).
+        if (bruceConfig.automaticTimeUpdateViaNTP && timezoneTaskHandle == NULL) {
             xTaskCreate(updateTimezoneTask, "updateTimezone", 4096, NULL, 1, &timezoneTaskHandle);
         }
     }
@@ -339,8 +340,9 @@ void wifiConnectTask(void *pvParameters) {
                 wifiConnected = true;
                 wifiIP = WiFi.localIP().toString();
 
-                // Start timezone update in background if not already running
-                if (timezoneTaskHandle == NULL) {
+                // Start timezone update in background if not already running.
+                // Skipped when the user opted for manual time (automaticTimeUpdateViaNTP).
+                if (bruceConfig.automaticTimeUpdateViaNTP && timezoneTaskHandle == NULL) {
                     xTaskCreate(updateTimezoneTask, "updateTimezone", 4096, NULL, 1, &timezoneTaskHandle);
                 }
                 drawStatusBar();
@@ -357,7 +359,7 @@ void wifiConnectTask(void *pvParameters) {
 
 String checkMAC() { return String(WiFi.macAddress()); }
 
-bool wifiConnecttoKnownNet(void) {
+bool wifiConnecttoKnownNet(bool startNtpTask) {
     if (WiFi.isConnected()) return true; // safeguard
     
     // Check if WiFi is in transition
@@ -397,8 +399,11 @@ bool wifiConnecttoKnownNet(void) {
         wifiConnected = true;
         wifiIP = WiFi.localIP().toString();
 
-        // Start timezone update in background if not already running
-        if (timezoneTaskHandle == NULL) {
+        // Start timezone update in background if not already running. Skipped
+        // for callers that immediately run their own foreground network I/O
+        // (startNtpTask=false): a concurrent detached task in the lwIP UDP/DNS
+        // stack trips IDF 5.5's TCPIP core-lock assert. See header note.
+        if (startNtpTask && bruceConfig.automaticTimeUpdateViaNTP && timezoneTaskHandle == NULL) {
             xTaskCreate(updateTimezoneTask, "updateTimezone", 4096, NULL, 1, &timezoneTaskHandle);
         }
     }

@@ -545,7 +545,10 @@ void runDebrief(const DebriefFacts &facts) {
     String aiText;
     if (bruceConfig.aiDebriefEnabled) {
         displayTextLine("Connecting WiFi for AI...");
-        if (wifiConnecttoKnownNet()) {
+        // startNtpTask=false: this flow drives its own foreground TLS request
+        // and tears WiFi down right after. A concurrent background NTP task
+        // would race the lwIP UDP/DNS stack and trip the core-lock assert.
+        if (wifiConnecttoKnownNet(false)) {
             displayTextLine("Asking AI...");
             aiText = aiGenerateDebrief(facts);
         } else {
