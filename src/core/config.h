@@ -61,7 +61,7 @@ public:
     // Wifi
     Credential webUI = {"admin", "vari"};
     std::vector<String> webUISessions = {}; // FIFO queue of session tokens
-    WiFiCredential wifiAp = {"VariOne", "varione1"};
+    WiFiCredential wifiAp = {"VariOne", ""}; // OPEN AP — phones cache one security type; OPEN everywhere avoids WPA2/open flip-flop
     std::map<String, String> wifi = {};
     std::set<String> evilWifiNames = {};
     String wifiMAC = ""; //@IncursioHack
@@ -97,7 +97,7 @@ public:
     std::vector<String> disabledMenus = {};
 
     std::vector<QrCodeEntry> qrCodes = {
-        {"VariOne AP",   "WIFI:T:WPA;S:VariOne;P:varione1;;"         },
+        {"VariOne AP",   "WIFI:T:nopass;S:VariOne;;"                 },
         {"VariOne Repo", "https://github.com/Ahmed-Ahmed16/variOne-2"},
         {"VariOne Site", "https://varione.ai/"                       },
         {"Rickroll",     "https://youtu.be/dQw4w9WgXcQ"             }

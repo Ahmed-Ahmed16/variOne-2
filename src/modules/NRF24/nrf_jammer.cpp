@@ -253,18 +253,23 @@ static void initCW(int channel) {
     Serial.println("[CW DBG] powerUp");
     Serial.flush();
     NRFradio.powerUp();
-    delay(5); // Tpd2stby: power-down → standby settle
+    delay(10); // Tpd2stby: power-down -> standby settle, plus PA module margin.
+    Serial.println("[CW DBG] configure radio");
+    Serial.flush();
+    NRFradio.setAutoAck(false);
+    NRFradio.disableCRC();
+    NRFradio.setAddressWidth(5);
+    NRFradio.setPayloadSize(2);
+    NRFradio.setDataRate(RF24_2MBPS);
     Serial.println("[CW DBG] setPALevel");
     Serial.flush();
     NRFradio.setPALevel(RF24_PA_MAX);
+    delay(10);
     Serial.println("[CW DBG] startConstCarrier");
     Serial.flush();
     NRFradio.startConstCarrier(RF24_PA_MAX, channel);
     Serial.println("[CW DBG] post-startConstCarrier");
     Serial.flush();
-    NRFradio.setAddressWidth(5);
-    NRFradio.setPayloadSize(2);
-    NRFradio.setDataRate(RF24_2MBPS);
     Serial.println("[CW DBG] initCW done");
     Serial.flush();
 }
@@ -656,6 +661,9 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
         if (check(NextPress)) {
             NrfJamMode prevMode = currentMode;
             currentMode = (NrfJamMode)(((uint8_t)currentMode + 1) % NRF_JAM_MODE_COUNT);
+            // Skip demo-hidden modes (VIDEO/RC/ZIGBEE/DRONE = trailing enum block 6..9),
+            // consistent with the nrf_jammer() selection menu. From USB(5), Next wraps to FULL(0).
+            if (currentMode >= NRF_JAM_VIDEO) currentMode = NRF_JAM_FULL;
             hopIndex = 0;
             if (CHECK_NRF_SPI(nrfMode)) {
                 nrf_claimBus();
@@ -678,6 +686,8 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
         if (check(PrevPress)) {
             NrfJamMode prevMode = currentMode;
             currentMode = (NrfJamMode)(((uint8_t)currentMode + NRF_JAM_MODE_COUNT - 1) % NRF_JAM_MODE_COUNT);
+            // Skip demo-hidden trailing block (VIDEO..DRONE): from FULL(0), Prev wraps to USB(5).
+            if (currentMode >= NRF_JAM_VIDEO) currentMode = NRF_JAM_USB;
             hopIndex = 0;
             if (CHECK_NRF_SPI(nrfMode)) {
                 nrf_claimBus();
@@ -699,6 +709,10 @@ static void runJammer(NRF24_MODE nrfMode, NrfJamMode jamMode) {
         if (redraw) {
             nrf_releaseBusToDisplay(); // hand pins to the TFT for the status redraw
             drawJammerStatus(currentMode, channel, NRFOnline, true);
+            // Narration (Part B3) — state-change throttled, not per-hop (avoids serial spam).
+            Serial.printf(
+                ">> NRF: jamming %s - ch %d\n", MODE_INFO[(uint8_t)currentMode].shortName, channel
+            );
             redraw = false;
         }
 
@@ -769,14 +783,11 @@ void nrf_jammer() {
 
     options.clear();
     for (int i = 0; i < NRF_JAM_MODE_COUNT; i++) {
-#if defined(VARIONE_HIDE_NRF_EXTRAS)
-        // Demo build: hide modes that need gear the owner can't demo, plus USB
-        // (mouse/kb) HID — an nRF24 can't reliably disrupt a real Logitech-class
-        // hopping dongle on this hardware, so it under-delivers in a demo.
-        if (i == NRF_JAM_VIDEO || i == NRF_JAM_RC || i == NRF_JAM_ZIGBEE || i == NRF_JAM_DRONE ||
-            i == NRF_JAM_USB)
+        // Hidden from the demo scroll list: no FPV/RC/Zigbee/drone gear to demo against.
+        // Unconditional (not gated on VARIONE_HIDE_NRF_EXTRAS, which also dropped Single CH /
+        // CH Hopper / Mouse-KB Kill — those stay visible). Enum/channel-lists/CLI untouched.
+        if (i == NRF_JAM_VIDEO || i == NRF_JAM_RC || i == NRF_JAM_ZIGBEE || i == NRF_JAM_DRONE)
             continue;
-#endif
         int mIdx = i;
         options.push_back({MODE_INFO[i].name, [&selectedMode, &selectedAction, mIdx]() {
                                selectedMode = (NrfJamMode)mIdx;

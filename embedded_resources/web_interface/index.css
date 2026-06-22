@@ -65,6 +65,44 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Flex so the read-only Spectator panel can sit beside .container; the
+     fixed-position overlays (.upload-area/.loading-area) are out of flow, and
+     .hidden is display:none, so a lone .container still centers as before. */
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: flex-start;
+}
+.spectator-panel {
+  flex: 0 0 35%;
+  max-width: 35%;
+  align-self: stretch;
+  background: var(--vo-panel);
+  border: 1px solid var(--vo-border);
+  border-radius: var(--vo-radius);
+  box-shadow: var(--vo-shadow);
+  overflow: hidden;
+}
+.spectator-panel .dialog-body {
+  padding: 12px;
+}
+.spectator-panel #spectator-screen {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border-radius: var(--vo-radius-sm);
+  background: #000;
+  pointer-events: none; /* read-only: no input to the device */
+}
+@media (max-width: 820px) {
+  body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .spectator-panel {
+    flex-basis: auto;
+    max-width: 100%;
+  }
 }
 .ml-10 {
   margin-left: 10px !important;

@@ -17,7 +17,9 @@ static int targetChannel = 0;
 static bool isHopping = false;
 static unsigned long jamStartTime = 0;
 
-static byte bleAdvertisingChannels[] = {37, 38, 39};
+static constexpr unsigned long ADV_CHANNEL_HOP_MS = 35;
+static constexpr unsigned long ALL_CHANNEL_HOP_MS = 100;
+static byte bleAdvertisingChannels[] = {2, 26, 80}; // nRF24 RF channels for BLE adv 37/38/39.
 static byte bleDataChannels[] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18,
                                  19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36};
 
@@ -46,7 +48,9 @@ bool startBLEJammer(BLEJamMode mode, int param) {
     switch (mode) {
         case BLE_JAM_ADV_CHANNELS:
             NRFradio.startConstCarrier(currentPowerLevel, bleAdvertisingChannels[0]);
-            isHopping = false;
+            isHopping = true;
+            currentChannelIndex = 0;
+            lastChannelHop = millis();
             break;
         case BLE_JAM_ALL_CHANNELS:
             NRFradio.startConstCarrier(currentPowerLevel, 0);
@@ -63,11 +67,13 @@ bool startBLEJammer(BLEJamMode mode, int param) {
             NRFradio.startConstCarrier(currentPowerLevel, bleAdvertisingChannels[0]);
             isHopping = true;
             currentChannelIndex = 0;
+            lastChannelHop = millis();
             break;
         case BLE_JAM_HOP_ALL:
             NRFradio.startConstCarrier(currentPowerLevel, 0);
             isHopping = true;
             currentChannelIndex = 0;
+            lastChannelHop = millis();
             break;
         case BLE_JAM_CONNECT_ATTACK:
             isHopping = false;
@@ -82,10 +88,13 @@ bool startBLEJammer(BLEJamMode mode, int param) {
 
 void updateBLEJammer() {
     if (!bleJammingActive) return;
-    if (isHopping && (millis() - lastChannelHop > 100)) {
+    unsigned long hopInterval = (currentMode == BLE_JAM_ADV_CHANNELS || currentMode == BLE_JAM_HOP_ADV)
+                                    ? ADV_CHANNEL_HOP_MS
+                                    : ALL_CHANNEL_HOP_MS;
+    if (isHopping && (millis() - lastChannelHop > hopInterval)) {
         byte *channels = NULL;
         int channelCount = 0;
-        if (currentMode == BLE_JAM_HOP_ADV) {
+        if (currentMode == BLE_JAM_ADV_CHANNELS || currentMode == BLE_JAM_HOP_ADV) {
             channels = bleAdvertisingChannels;
             channelCount = 3;
         } else if (currentMode == BLE_JAM_HOP_ALL) {
@@ -120,7 +129,7 @@ int getCurrentBLEChannel() {
     if (!bleJammingActive) return -1;
     if (currentMode == BLE_JAM_TARGET_CHANNEL) return targetChannel;
     if (isHopping) {
-        if (currentMode == BLE_JAM_HOP_ADV && currentChannelIndex < 3) {
+        if ((currentMode == BLE_JAM_ADV_CHANNELS || currentMode == BLE_JAM_HOP_ADV) && currentChannelIndex < 3) {
             return bleAdvertisingChannels[currentChannelIndex];
         } else if (currentMode == BLE_JAM_HOP_ALL) {
             if (currentChannelIndex < 36) {

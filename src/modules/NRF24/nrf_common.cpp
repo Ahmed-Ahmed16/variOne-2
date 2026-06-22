@@ -65,6 +65,22 @@ bool nrf_start(NRF24_MODE mode) {
     pinMode(bruceConfigPins.NRF24_bus.io0, OUTPUT);
     digitalWrite(bruceConfigPins.NRF24_bus.io0, LOW);
 
+    // Deselect the OTHER chips that share the SPI bus pins (SCK/MOSI/MISO 12/11/13):
+    // CC1101 (CS 10) and the SD card (CS 16). On the very first NRF use after boot
+    // their CS lines are still in the power-on state (not yet driven HIGH by their
+    // own driver), so they keep driving MISO and the NRF reads nothing -> begin=0,
+    // isChipConnected=0, "Fail Starting radio". Running RF/RFID first is what used
+    // to deselect them as a side effect (hence "NRF worked after using RF/RFID").
+    // These CS pins are separate from the shared bus pins, so driving them is safe.
+    if (bruceConfigPins.CC1101_bus.cs != GPIO_NUM_NC) {
+        pinMode(bruceConfigPins.CC1101_bus.cs, OUTPUT);
+        digitalWrite(bruceConfigPins.CC1101_bus.cs, HIGH);
+    }
+    if (bruceConfigPins.SDCARD_bus.cs != GPIO_NUM_NC) {
+        pinMode(bruceConfigPins.SDCARD_bus.cs, OUTPUT);
+        digitalWrite(bruceConfigPins.SDCARD_bus.cs, HIGH);
+    }
+
     if (bruceConfigPins.NRF24_bus.mosi == (gpio_num_t)TFT_MOSI &&
         bruceConfigPins.NRF24_bus.mosi != GPIO_NUM_NC &&
         // VariOne S3: TFT (SPI2/LovyanGFX) and CC1101+NRF (HSPI) all sit on GPIO
@@ -124,9 +140,34 @@ bool nrf_start(NRF24_MODE mode) {
     }
     delay(10); // power/settle before RF24::begin (RF24 also delays 5ms internally)
 
-    bool beginOk = NRFradio.begin(
-        NRFSPI, rf24_gpio_pin_t(bruceConfigPins.NRF24_bus.io0), rf24_gpio_pin_t(bruceConfigPins.NRF24_bus.cs)
-    );
+    // Retry begin(): the FIRST RF24::begin() after boot frequently returns 0 on
+    // this shared-bus wiring (the chip needs the SPI bus exercised before it
+    // answers — which is why running RF/RFID/Jammer first used to "fix" it). Each
+    // begin() does real register reads/writes, so retrying exercises the bus and
+    // succeeds within a few tries. Gate on begin() only; isChipConnected() reads
+    // unreliably right after begin (observed begin=1 while isChipConnected=0 yet
+    // the radio worked).
+    bool beginOk = false;
+    for (int attempt = 0; attempt < 20 && !beginOk; attempt++) {
+        beginOk = NRFradio.begin(
+            NRFSPI, rf24_gpio_pin_t(bruceConfigPins.NRF24_bus.io0),
+            rf24_gpio_pin_t(bruceConfigPins.NRF24_bus.cs)
+        );
+        if (!beginOk) {
+            delay(15);
+            if (nrf_needsBusRemux) {
+                // Cold boot (NRF launched FIRST, before RF/RFID) sometimes needs the SPI3
+                // routing re-seated harder than a single SCK/MOSI claim. Every few tries,
+                // also re-attach the MISO matrix input — replaces the "run RF first" ritual.
+                if ((attempt & 3) == 3) {
+                    pinMatrixInAttach(
+                        (uint8_t)bruceConfigPins.NRF24_bus.miso, SPI3_Q_OUT_IDX, false
+                    );
+                }
+                nrf_claimBus(); // re-assert the SPI3 SCK/MOSI matrix
+            }
+        }
+    }
     Serial.printf(
         "[NRF DBG] begin=%d isChipConnected=%d\n", beginOk ? 1 : 0, NRFradio.isChipConnected() ? 1 : 0
     );
@@ -182,10 +223,10 @@ void nrf_releaseBusToDisplay() {
 
 NRF24_MODE nrf_setMode() {
     NRF24_MODE mode = NRF_MODE_DISABLED;
+    // VariOne has no external UART nRF jammer module — only the on-board nRF24 on SPI.
+    // Drop the dead "SPI UART" / "SPI BOTH" options; user picks SPI or backs out.
     options = {
         {"SPI Mode",  [&]() { mode = NRF_MODE_SPI; } },
-        {"SPI UART",  [&]() { mode = NRF_MODE_UART; }},
-        {"SPI BOTH",  [&]() { mode = NRF_MODE_BOTH; }},
         {"Main Menu", [=]() { returnToMenu = true; } }
     };
     loopOptions(options);

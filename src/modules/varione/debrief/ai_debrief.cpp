@@ -135,6 +135,7 @@ static String geminiCloudGenerate(const String &prompt) {
     // Reclaim the WiFi scan results left by wifiConnecttoKnownNet, then report
     // memory (TLS to Google needs large buffers — served from PSRAM when enabled).
     WiFi.scanDelete();
+    delay(20); // let the freed scan blocks coalesce before TLS allocs
     Serial.printf(
         "[AI] mem before TLS: free=%u largest=%u internal=%u psram=%u\n",
         (unsigned)ESP.getFreeHeap(),
@@ -143,9 +144,18 @@ static String geminiCloudGenerate(const String &prompt) {
         (unsigned)ESP.getFreePsram()
     );
 
+    // Pre-TLS heap guard (mirrors startMdnsResponder): bail to canned fallback
+    // rather than OOM mid-handshake when internal heap is exhausted.
+    constexpr size_t kMinInternalHeap = 20 * 1024;
+    if (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) < kMinInternalHeap) {
+        Serial.println("[AI] gemini: internal heap too low for TLS — canned fallback");
+        return "";
+    }
+
     String url = String("https://") + GEMINI_HOST + GEMINI_PATH;
 
     String payload;
+    payload.reserve(8192); // avoid realloc churn while reading the response body
     int status = -1;
     for (int attempt = 1; attempt <= 3 && status != 200; attempt++) {
         WiFiClientSecure client;
@@ -192,10 +202,20 @@ static String groqCloudGenerate(const String &prompt) {
 
     // Reclaim the WiFi scan buffers before the TLS handshake needs large blocks.
     WiFi.scanDelete();
+    delay(20); // let the freed scan blocks coalesce before TLS allocs
+
+    // Pre-TLS heap guard (mirrors startMdnsResponder): if internal heap is too low
+    // the TLS handshake will OOM mid-flight — bail early to the canned fallback.
+    constexpr size_t kMinInternalHeap = 20 * 1024;
+    if (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) < kMinInternalHeap) {
+        Serial.println("[AI] groq: internal heap too low for TLS — canned fallback");
+        return "";
+    }
 
     String url = String("https://") + GROQ_HOST + GROQ_PATH;
 
     String payload;
+    payload.reserve(8192); // avoid realloc churn while reading the response body
     int status = -1;
     for (int attempt = 1; attempt <= 3 && status != 200; attempt++) {
         WiFiClientSecure client;

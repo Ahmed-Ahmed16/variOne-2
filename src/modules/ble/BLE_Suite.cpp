@@ -2315,19 +2315,38 @@ bool MultiConnectionAttack::nrf24JamAttack(int jamMode) {
     bool success = startBLEJammer(bleMode);
 
     if (success) {
-        std::vector<String> lines = {
-            "BLE JAMMER ACTIVE",
-            "Mode: " + String(
-                           bleMode == BLE_JAM_ADV_CHANNELS ? "Advertising Channels"
-                           : bleMode == BLE_JAM_HOP_ADV    ? "Hopping Adv Channels"
-                           : bleMode == BLE_JAM_HOP_ALL    ? "Hopping All BLE Channels"
-                                                           : "Unknown"
-                       ),
-            "",
-            "Jamming BLE frequencies",
-            "Press any key to stop..."
-        };
-        showDeviceInfoScreen("BLE JAMMER", lines, TFT_ORANGE, TFT_WHITE);
+        String modeLabel = bleMode == BLE_JAM_HOP_ALL ? "All BLE" : "Advertising";
+        tft.fillScreen(TFT_ORANGE);
+        tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
+        tft.setTextColor(TFT_WHITE, TFT_ORANGE);
+        tft.setTextSize(2);
+        tft.setCursor((tftWidth - tft.textWidth("BLE JAM")) / 2, 15);
+        tft.print("BLE JAM");
+        tft.setTextSize(1);
+        tft.setCursor(18, 48);
+        tft.print("Mode: " + modeLabel);
+        tft.setCursor(18, 66);
+        tft.print("BLE adv: 37/38/39");
+        tft.setCursor(18, 84);
+        tft.print(bleMode == BLE_JAM_HOP_ALL ? "RF sweep active" : "RF hop: 2/26/80");
+        tft.setCursor(18, tftHeight - 28);
+        tft.print("Any key stops");
+
+        delay(200);
+        uint32_t lastDraw = 0;
+        while (true) {
+            updateBLEJammer();
+            if (millis() - lastDraw > 250) {
+                int currentChannel = getCurrentBLEChannel();
+                String channelLine = currentChannel >= 0 ? "Now RF ch: " + String(currentChannel) : "Now RF ch: --";
+                tft.fillRect(18, 104, tftWidth - 36, 12, TFT_ORANGE);
+                tft.setCursor(18, 104);
+                tft.print(channelLine);
+                lastDraw = millis();
+            }
+            if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) break;
+            delay(20);
+        }
         stopBLEJammer();
         cleanup.disable();
         showAttackResult(true, "BLE jamming stopped");

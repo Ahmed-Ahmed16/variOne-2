@@ -329,6 +329,13 @@ uint32_t displayCallback(cmd *c) {
         serialDevice->println("Display: Started async serial");
         tft.startAsyncSerial();
         tft.getTftInfo();
+        // Immediately push the current binlog (SCREEN_INFO + any retained entries) so a
+        // host mirror gets screen dimensions + a first frame on connect, instead of
+        // waiting for the next on-screen draw (the async stream is push-on-new-draw).
+        static uint8_t snap[MAX_LOG_ENTRIES * MAX_LOG_SIZE];
+        size_t snapSize = 0;
+        tft.getBinLog(snap, snapSize);
+        if (snapSize) serialDevice->write(snap, snapSize);
     } else if (opt == "stop") {
         serialDevice->println("Display: Stopped async serial");
         tft.stopAsyncSerial();

@@ -122,9 +122,11 @@ void ConfigMenu::optionsMenu() {
             {"Power",         [this]() { powerMenu(); }    },
         };
 #if !defined(LITE_VERSION)
-        if (!appStoreInstalled()) {
-            localOptions.push_back({"Install App Store", []() { installAppStoreJS(); }});
-        }
+        // FINALE declutter (user request): hide "Install App Store" — out of VariOne
+        // scope. Code kept compiled-out + in-tree; uncomment to restore.
+        // if (!appStoreInstalled()) {
+        //     localOptions.push_back({"Install App Store", []() { installAppStoreJS(); }});
+        // }
 #endif
 
         if (bruceConfig.devMode) {

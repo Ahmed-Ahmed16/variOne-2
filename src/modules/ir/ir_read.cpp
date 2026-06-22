@@ -137,7 +137,12 @@ void IrRead::loop() {
         if (check(UpPress)) replay_signal();
         if (check(NextPress)) save_signal();
         if (quickloop && button_pos == quickButtons.size()) save_device();
-        if (check(SelPress)) save_device();
+        // OK replays the just-captured signal (QOL: verify against the real
+        // remote fast). With no fresh capture, OK saves the device as before.
+        if (check(SelPress)) {
+            if (_read_signal) replay_signal();
+            else save_device();
+        }
         if (check(PrevPress)) discard_signal();
 
         read_signal();
@@ -181,11 +186,11 @@ void IrRead::display_btn_options() {
     tft.println("");
     tft.println("");
     if (_read_signal) {
-        padprintln("Press [UP]   to replay signal");
-        padprintln("Press [PREV] to discard signal");
+        padprintln("Press [OK]   to replay signal");
         padprintln("Press [NEXT] to save signal");
+        padprintln("Press [PREV] to discard signal");
     }
-    if (signals_read > 0) { padprintln("Press [OK]   to save device"); }
+    if (signals_read > 0 && !_read_signal) { padprintln("Press [OK]   to save device"); }
     padprintln("Press [ESC]  to exit");
 }
 
@@ -336,6 +341,13 @@ void IrRead::append_to_file_str(String btn_name) {
             strDeviceContent += "value: " + uint32ToString(results.value) + " " +
                                 uint32ToString(results.value >> 32) + "\n"; // MEMO: from uint64_t
         else strDeviceContent += "value: " + uint32ToStringInverted(results.value) + "\n";
+
+        // Narration (Part B3) — present-tense capture line for the USB mirror.
+        Serial.printf(
+            ">> IR: captured %s addr=0x%X cmd=0x%X (%d-bit)\n",
+            String(typeToString(results.decode_type, results.repeat)).c_str(),
+            (unsigned)results.address, (unsigned)results.command, results.bits
+        );
 
         /*
         Serial.println(results.bits);

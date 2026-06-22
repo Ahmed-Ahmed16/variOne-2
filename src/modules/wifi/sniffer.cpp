@@ -633,11 +633,11 @@ static bool ensureSnifferBackend() {
     if (!snifferWriterHandle) {
 #if SOC_CPU_CORES_NUM > 1
         BaseType_t res = xTaskCreatePinnedToCore(
-            snifferWriterTask, "sniff_writer", 4096, nullptr, 4, &snifferWriterHandle, 1
+            snifferWriterTask, "sniff_writer", 6144, nullptr, 4, &snifferWriterHandle, 1
         );
 #else
         BaseType_t res =
-            xTaskCreate(snifferWriterTask, "sniff_writer", 4096, nullptr, 4, &snifferWriterHandle);
+            xTaskCreate(snifferWriterTask, "sniff_writer", 6144, nullptr, 4, &snifferWriterHandle);
 #endif
         if (res != pdPASS) { snifferWriterHandle = nullptr; }
     }

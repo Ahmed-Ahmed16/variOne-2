@@ -1,0 +1,24 @@
+REM VariOne BadUSB — Linux Mint / Cinnamon (opens the xed text editor)
+REM Personal test payload. Demo day still uses the Notepad payload
+REM (test_sanity.txt) UNCHANGED — this file is separate.
+REM
+REM Requires the HID build (pio run -e varione-s3-hid) and the device plugged
+REM into the NATIVE USB (OTG) port, not the UART/flashing port.
+REM Cinnamon default terminal shortcut = CTRL+ALT+T; default editor = xed.
+REM Copy to SD at /badusb/linux_cinnamon_xed.txt, then run BadUSB and pick it.
+REM Text avoids glyphs the HID layout drops (# @ * + :), so it types cleanly.
+
+DELAY 2000
+CTRL ALT t
+DELAY 1500
+STRING xed
+ENTER
+DELAY 2500
+STRING VariOne BadUSB Awareness Demo
+ENTER
+STRING This text was typed by a small device pretending to be a USB keyboard.
+ENTER
+STRING No software exploit was used. The computer simply trusted the keyboard.
+ENTER
+STRING Lock your screen, and never plug in an unknown USB device.
+ENTER

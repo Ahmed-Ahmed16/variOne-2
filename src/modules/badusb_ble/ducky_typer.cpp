@@ -185,6 +185,17 @@ void ducky_startKb(HIDInterface *&hid, bool ble) {
             hid = new BleKeyboard(bruceConfigPins.bleName, "VariOneFW", 100);
         } else {
 #if defined(USB_as_HID)
+#if ARDUINO_USB_MODE == 1
+            // Native USB-HID needs the TinyUSB OTG stack (ARDUINO_USB_MODE=0). This
+            // firmware boots in Hardware CDC/JTAG mode (=1) for reliable serial +
+            // flashing, so calling USB.begin() here switches the SHARED USB PHY from
+            // USB-Serial-JTAG to OTG mid-run and crashes the device. Refuse cleanly
+            // instead of rebooting. Flash the `varione-s3-hid` build (built with
+            // ARDUINO_USB_MODE=0) to actually run the BadUSB/HID segment.
+            displayError("Flash the HID build for BadUSB (USB_MODE=0)", true);
+            returnToMenu = true;
+            return; // caller frees hid at EXIT
+#else
             hid = new USBHIDKeyboard();
             USB.begin();
 
@@ -207,6 +218,7 @@ void ducky_startKb(HIDInterface *&hid, bool ble) {
             }
 
             printStatusBadUSBBLE("USB Host Connected");
+#endif // ARDUINO_USB_MODE == 1
 #else
             mySerial.begin(CH9329_DEFAULT_BAUDRATE, SERIAL_8N1, BAD_RX, BAD_TX);
             delay(100);

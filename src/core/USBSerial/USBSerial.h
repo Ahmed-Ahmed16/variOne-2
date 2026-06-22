@@ -4,7 +4,11 @@
 #include "SerialDevice.h"
 #include <Arduino.h>
 
-class USBSerial : public SerialDevice {
+// Renamed from "USBSerial" to avoid colliding with the Arduino core's global
+// `USBSerial` instance (aliased as `Serial` when built ARDUINO_USB_MODE=0 /
+// TinyUSB — the varione-s3-hid / BadUSB build). The default MODE=1 build is
+// unaffected; this is purely a class rename.
+class BruceUSBSerial : public SerialDevice {
 public:
     size_t println(const String &s) override { return out->println(s); }
     size_t print(const String &s) override { return out->print(s); }
@@ -20,8 +24,8 @@ public:
     size_t write(uint8_t *str, size_t size) override { return out->write(str, size); }
     void setSerialOutput(Stream *in) { out = in; }
     Stream *getSerialOutput() { return out; }
-    USBSerial(Stream *in = &Serial) { out = in; }
-    ~USBSerial() override = default;
+    BruceUSBSerial(Stream *in = &Serial) { out = in; }
+    ~BruceUSBSerial() override = default;
 
 private:
     Stream *out;

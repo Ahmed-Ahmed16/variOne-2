@@ -8,6 +8,7 @@
 #include <typeinfo>
 
 extern AsyncWebServer *server; // used to check if the webserver is running
+typedef void (*SharedCaptiveHandler)(void *ctx, AsyncWebServerRequest *request);
 
 // function defaults
 String humanReadableSize(uint64_t bytes);
@@ -28,6 +29,11 @@ void cleanlyStopWebUiForWiFiFeature();
 
 // Single shared port-80 server, created + begun once and never rebound.
 void ensureWebServer();
+// Temporarily route captive/root requests to a feature such as VariPortal while
+// keeping the single shared port-80 listener alive.
+void webPortalBegin(void *ctx, SharedCaptiveHandler handler);
+void webPortalEnd(void *ctx);
+bool webPortalActive();
 // Serve the debrief report from the shared server at /debrief (and on captive
 // probes) until webDebriefEnd().
 void webDebriefBegin(const String &html);

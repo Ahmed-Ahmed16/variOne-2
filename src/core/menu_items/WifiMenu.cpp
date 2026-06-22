@@ -33,6 +33,7 @@ bool showHiddenNetworks = false;
 
 void WifiMenu::optionsMenu() {
     returnToMenu = false;
+  for (;;) { // re-loop: BACK from a feature returns HERE, not to the main menu
     options.clear();
     // Note: WiFi features will cleanly stop WebUI automatically when they start
     // User can navigate menu normally even with WebUI active
@@ -64,7 +65,9 @@ void WifiMenu::optionsMenu() {
 #endif
     options.push_back({"Sniffer", sniffer_setup});
     options.push_back({"Channel Graph", wifi_channel_graph});
-    options.push_back({"Phone Probes", wifi_phone_probe});
+    // Hidden from demo menu (user request) — wifi_phone_probe stays compiled/callable,
+    // just not surfaced in the scroll list. Re-enable by uncommenting.
+    // options.push_back({"Phone Probes", wifi_phone_probe});
     options.push_back({"Scan Hosts", [=]() {
                            bool doScan = true;
                            if (!wifiConnected) doScan = wifiConnectMenu();
@@ -93,9 +96,9 @@ void WifiMenu::optionsMenu() {
 
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "WiFi");
-
-    options.clear();
+    int idx = loopOptions(options, MENU_TYPE_SUBMENU, "WiFi");
+    if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) return;
+  }
 }
 
 void WifiMenu::configMenu() {

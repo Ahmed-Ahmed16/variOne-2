@@ -11,6 +11,7 @@
 #include <globals.h>
 
 void BleMenu::optionsMenu() {
+  for (;;) { // re-loop: BACK from a feature returns HERE, not to the main menu
     options.clear();
 #if !defined(LITE_VERSION)
     if (BLEConnected) {
@@ -52,7 +53,9 @@ void BleMenu::optionsMenu() {
 #endif
     addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "Bluetooth", 0, false);
+    int idx = loopOptions(options, MENU_TYPE_SUBMENU, "Bluetooth", 0, false);
+    if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) return;
+  }
 }
 
 void BleMenu::drawIcon(float scale) {

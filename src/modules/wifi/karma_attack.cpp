@@ -47,7 +47,7 @@ static bool ensureKarmaApInterface(uint8_t channel) {
             Serial.println("[KARMA] Failed to switch WiFi to AP mode");
             return false;
         }
-        if (!WiFi.softAP("VariKarma", "", channel, 1, 4, false)) {
+        if (!WiFi.softAP("VariKarma", "", channel, 1, 10, false)) {
             Serial.println("[KARMA] Failed to start AP interface");
             return false;
         }

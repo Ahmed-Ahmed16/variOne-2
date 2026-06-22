@@ -107,6 +107,8 @@ private:
     String wifiLoadPage(void);
     void saveToCSV(const String &csvLine, bool IsAPname = false);
     void drawScreen(void);
+    void handlePortalRequest(AsyncWebServerRequest *request);
+    static void handleSharedRequest(void *ctx, AsyncWebServerRequest *request);
 
     String getHtmlTemplate(String body);
     String creds_GET(void);

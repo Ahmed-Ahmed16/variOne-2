@@ -17,12 +17,24 @@ void QRcode::init()
 {
   screenwidth = tft->width();
   screenheight = tft->height();
+  // Reserve a caption band at the bottom on small screens so the QR centers
+  // ABOVE it and never overlaps text. WD is the module count (VERSION 7 -> 45);
+  // QR size is WD*multiply, so we only shrink `multiply`, never clip modules.
+  int usableHeight = screenheight;
+  if (screenheight <= 160)
+  {
+    usableHeight = screenheight - QR_CAPTION_BAND;
+    if (usableHeight < WD)
+      usableHeight = screenheight;
+  }
   int min = screenwidth;
-  if (screenheight < screenwidth)
-    min = screenheight;
+  if (usableHeight < min)
+    min = usableHeight;
   multiply = min / WD;
+  if (multiply < 1)
+    multiply = 1;
   offsetsX = (screenwidth - (WD * multiply)) / 2;
-  offsetsY = (screenheight - (WD * multiply)) / 2;
+  offsetsY = (usableHeight - (WD * multiply)) / 2;
 }
 
 void QRcode::render(int x, int y, int color)
@@ -83,5 +95,44 @@ void QRcode::create(String message)
         render((x + 1), y, 0);
       }
     }
+  }
+
+  // Mirror the QR to the USB screen-mirror (varione-mirror.html) as ONE compact text
+  // line. The per-module fill-rects (45x45 = 2025) overflow the 64-entry draw-log, so a
+  // QR can't stream as draw ops. fillScreen(WHITE) above already streamed the white
+  // background; here we send only the black-module matrix as hex on Serial — the same
+  // USB CDC the mirror reads (serialDevice wraps &Serial). This lib has no project
+  // headers, so we can't cheaply gate on logging-active; the line is harmless when no
+  // mirror is attached (just a ">>QR:" hex line the serial console / CLI ignore).
+  {
+    static const char H[] = "0123456789ABCDEF";
+    String qr = ">>QR:" + String(offsetsX) + "," + String(offsetsY) + "," + String(multiply) +
+                "," + String((int)WD) + ",";
+    String hex;
+    hex.reserve(((WD * WD + 7) / 8) * 2);
+    uint8_t cur = 0;
+    int bit = 0;
+    for (int yy = 0; yy < WD; yy++)
+    {
+      for (int xx = 0; xx < WD; xx++)
+      {
+        cur = (uint8_t)((cur << 1) | (QRBIT(xx, yy) ? 1 : 0));
+        if (++bit == 8)
+        {
+          hex += H[cur >> 4];
+          hex += H[cur & 0x0F];
+          cur = 0;
+          bit = 0;
+        }
+      }
+    }
+    if (bit)
+    {
+      cur = (uint8_t)(cur << (8 - bit));
+      hex += H[cur >> 4];
+      hex += H[cur & 0x0F];
+    }
+    qr += hex;
+    Serial.println(qr);
   }
 }

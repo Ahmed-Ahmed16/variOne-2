@@ -573,12 +573,46 @@ async function autoReloadScreen() {
   if (timer > 0) taskReloader();
 }
 
+/// SPECTATOR VIEW — read-only mirror of the device screen on a side panel.
+/// Reuses the same /getscreen draw-log feed + renderTFT() as the Navigator,
+/// but renders to its own canvas and never sends input. ~500ms refresh.
+let SPECTATOR_RELOAD = null;
+async function spectatorReload() {
+  const panel = $(".spectator-panel");
+  if (!panel || panel.classList.contains("hidden")) {
+    if (SPECTATOR_RELOAD) {
+      clearTimeout(SPECTATOR_RELOAD);
+      SPECTATOR_RELOAD = null;
+    }
+    return;
+  }
+  try {
+    let binResponse = await fetch((IS_DEV ? "/bruce" : "") + "/getscreen");
+    let arrayBuffer = await binResponse.arrayBuffer();
+    await renderTFT(new Uint8Array(arrayBuffer), "#spectator-screen");
+  } catch (error) {
+    console.error("Spectator reload failed:", error);
+  }
+  SPECTATOR_RELOAD = setTimeout(spectatorReload, 500);
+}
+function toggleSpectator() {
+  const panel = $(".spectator-panel");
+  if (!panel) return;
+  panel.classList.toggle("hidden");
+  if (!panel.classList.contains("hidden")) {
+    spectatorReload();
+  } else if (SPECTATOR_RELOAD) {
+    clearTimeout(SPECTATOR_RELOAD);
+    SPECTATOR_RELOAD = null;
+  }
+}
+
 /// TFT RENDER
 let loadingDrawn = false;
 const imageCache = {}; // global
-async function renderTFT(data) {
+async function renderTFT(data, canvasSelector = "#navigator-screen") {
   loadingDrawn = false;
-  const canvas = $("#navigator-screen");
+  const canvas = $(canvasSelector);
   const ctx = canvas.getContext("2d");
 
   const loadImage = async (url) => {
@@ -867,7 +901,7 @@ async function renderTFT(data) {
   const allText = screenText.join(" ").toLowerCase();
   const isWiFiMenu =
     allText.includes("wifi") ||
-    allText.includes("evil portal") ||
+    allText.includes("variportal") ||
     allText.includes("deauth") ||
     allText.includes("handshake");
 

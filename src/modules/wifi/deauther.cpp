@@ -182,7 +182,7 @@ void stationDeauth(Host host) {
             currentSsid = "DEAUTH_" + String(random(1000, 9999));
         }
 
-        if (!WiFi.softAP(currentSsid.c_str(), emptyString, channel, 1, 4, false)) {
+        if (!WiFi.softAP(currentSsid.c_str(), emptyString, channel, 1, 10, false)) {
             Serial.println("Fail Starting AP Mode");
             displayError("Fail starting Deauth", true);
             return;
@@ -242,7 +242,7 @@ void stationDeauth(Host host) {
         total_frames += 4;
 
         if (cont % 16 == 0) {
-            delay(35);
+            vTaskDelay(pdMS_TO_TICKS(35)); // yield so idle task + WDT run (no Guru Meditation)
         } else {
             delay(2);
         }
@@ -255,6 +255,12 @@ void stationDeauth(Host host) {
             tft.fillRect(tftWidth - 100, tftHeight - 40, 100, 40, TFT_BLACK);
             tft.drawRightString(String(fps) + " fps", tftWidth - 12, tftHeight - 36, 1);
             tft.drawRightString("Total: " + String(total_frames), tftWidth - 12, tftHeight - 20, 1);
+
+            // Judge-facing narration (Part B3) — present-tense, prefixed for the USB mirror.
+            Serial.printf(
+                ">> DEAUTH: target %s on ch%d - %d fps, %d frames total\n", host.mac.c_str(), channel,
+                fps, total_frames
+            );
         }
     }
 
@@ -268,5 +274,6 @@ void stationDeauth(Host host) {
     tft.fillRect(0, tftHeight - 60, tftWidth, 60, TFT_BLACK);
     padprintln("Attack stopped.");
     padprintln("Frames sent: " + String(total_frames));
+    Serial.printf(">> DEAUTH stopped: %d frames total\n", total_frames);
     delay(1000);
 }

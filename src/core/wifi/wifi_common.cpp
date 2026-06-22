@@ -148,11 +148,41 @@ bool _setupAP() {
     esp_wifi_set_promiscuous(false);
     esp_wifi_set_promiscuous_rx_cb(NULL);
 
-    // Lock an explicit regulatory country with MANUAL policy. The default
-    // country "01" (worldwide) uses AUTO policy, which waits to detect a
-    // country from a received beacon before it will actively transmit the
-    // AP's own beacon -- so the AP starts but never broadcasts a visible SSID.
-    // MANUAL policy lets the AP beacon immediately on channels 1-11.
+    // Start the AP on a fixed channel and the DEFAULT IP (192.168.4.1).
+    bool ok = WiFi.softAP(apSsid.c_str(), pwdArg, 1, 0, 10, false);
+    if (!ok) {
+        Serial.println("[AP] softAP() failed to start");
+        wifiConnected = false;
+        return false;
+    }
+
+    // DHCP re-seat: EVERY AP path (WebUI / "Start WiFi AP" / debrief) funnels
+    // through _setupAP(). A prior STA connection (AI debrief phase-1 home WiFi)
+    // or a WiFi attack leaves the AP netif/dhcps desynced, so phones associate
+    // but never get a lease -- softAPgetStationNum stays 0 and the phone shows
+    // "couldn't connect to network". Force-cycle the AP DHCP server with the AP
+    // IP so a fresh pool is handed out. Proven fix (serial-confirmed stations=1);
+    // previously only debrief.cpp / evil_portal.cpp did this, so the plain WebUI
+    // and "Start WiFi AP" menu paths were left broken.
+    {
+        esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        if (apNetif) {
+            esp_netif_dhcps_stop(apNetif);
+            IPAddress apIP = WiFi.softAPIP();
+            esp_netif_ip_info_t ipInfo = {};
+            ipInfo.ip.addr = (uint32_t)apIP;
+            ipInfo.gw.addr = (uint32_t)apIP;
+            ipInfo.netmask.addr = (uint32_t)IPAddress(255, 255, 255, 0);
+            esp_netif_set_ip_info(apNetif, &ipInfo);
+            esp_netif_dhcps_start(apNetif);
+        }
+    }
+    // Assert MANUAL regulatory policy AFTER the AP has started. The default
+    // country "01" (worldwide) uses AUTO policy, which waits to detect a country
+    // from a received beacon before it actively transmits -- so the AP starts but
+    // the SSID is slow/never visible (the 3-5 min delay). Setting it on the
+    // already-running AP makes it beacon on ch1 immediately. Done here (not before
+    // softAPConfig) because softAPConfig was resetting the regdomain back to AUTO.
     wifi_country_t country = {};
     strncpy(country.cc, "EG", sizeof(country.cc)); // Egypt: channels 1-13
     country.schan = 1;
@@ -160,16 +190,6 @@ bool _setupAP() {
     country.policy = WIFI_COUNTRY_POLICY_MANUAL;
     esp_wifi_set_country(&country);
 
-    // Start the AP on a fixed channel and the DEFAULT IP (192.168.4.1). Do NOT
-    // call softAPConfig() here: reconfiguring the IP to a non-default gateway
-    // after softAP() was observed to start the AP without a visible beacon on
-    // this S3 board.
-    bool ok = WiFi.softAP(apSsid.c_str(), pwdArg, 1, 0, 4, false);
-    if (!ok) {
-        Serial.println("[AP] softAP() failed to start");
-        wifiConnected = false;
-        return false;
-    }
     // Force a healthy TX power; some S3 clones boot AP mode at very low power.
     WiFi.setTxPower(WIFI_POWER_19_5dBm);
     esp_wifi_set_max_tx_power(80); // 80 = 20 dBm (0.25 dBm units)

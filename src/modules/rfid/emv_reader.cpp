@@ -452,6 +452,24 @@ void EMVReader::display_emv(EMVCard card) {
         padprintln("Failed to read EMV Card.");
     }
 
+    // ── Summary status line (Part B1) ─────────────────────────────
+    // Tells the demo audience *why* a card read or didn't (PDOL gap vs clean read).
+    String panStatus;
+    if (!card.parsed) panStatus = "UNKNOWN X";                     // total read failure
+    else if (card.pan == nullptr) panStatus = "PARTIAL (PDOL gap)"; // card present, PAN unreadable
+    else if (card.validto != nullptr && !aid.empty()) panStatus = "READ OK";
+    else panStatus = "PARTIAL";
+    padprintln("Status: " + panStatus);
+
+    // Serial mirror (Part B3) — full PAN stays on-screen (user override, own cards only),
+    // but the PAN is MASKED to last-4 on the serial wire / USB mirror.
+    std::string last4 =
+        (card.pan != nullptr && pan.size() >= 4) ? pan.substr(pan.size() - 4) : std::string("----");
+    Serial.printf(
+        ">> EMV: %s card - PAN ****%s, exp %s - %s\n", aid.empty() ? "UNKNOWN" : aid.c_str(),
+        last4.c_str(), validto.empty() ? "--/--" : validto.c_str(), panStatus.c_str()
+    );
+
     padprintln("Press any key to continue...");
 
     while (!AnyKeyPress) { delay(100); }

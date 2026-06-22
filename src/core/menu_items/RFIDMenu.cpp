@@ -14,6 +14,7 @@
 #include "modules/rfid/emv_reader.hpp"
 #endif
 void RFIDMenu::optionsMenu() {
+  for (;;) { // re-loop: BACK from a feature returns HERE, not to the main menu
     options = {
 #if !defined(REMOVE_RFID_HW_INTERFACE)  // Remove Hardware interface menu due to lack of external GPIO
         {"Read tag",    [=]() { TagOMatic(); }                          },
@@ -70,7 +71,9 @@ void RFIDMenu::optionsMenu() {
 #endif
     else if (bruceConfigPins.rfidModule == PN532_SPI_MODULE) txt += " (PN532-SPI)";
     else if (bruceConfigPins.rfidModule == RC522_SPI_MODULE) txt += " (RC522-SPI)";
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    int idx = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) return;
+  }
 }
 
 void RFIDMenu::configMenu() {

@@ -226,10 +226,24 @@ void wifi_atk_info(String tssid, String mac, uint8_t channel) {
 bool wifi_atk_setWifi() {
     checkHeap("Wifi atk start");
 
-    if (WiFi.getMode() != WIFI_MODE_NULL) { return true; }
+    // Universal chokepoint: lower the WebUI flag + drop its AP BEFORE we touch the
+    // radio. Every attack routes through here, so Beacon/Karma/Deauth-Flood (which
+    // never called this directly) no longer reconfigure WiFi under a live WebUI —
+    // that combo crashed/rebooted and left the WebUI "stuck loading" on HW.
+    cleanlyStopWebUiForWiFiFeature();
 
+    // ALWAYS fully reset the WiFi driver to a known clean state before an attack,
+    // whatever left it running (WebUI AP, spectator, sniffer promiscuous). Two
+    // bugs this avoids: (1) the old "return early if mode != NULL" skipped setup
+    // after WebUI/sniffer, so deauth ran in the wrong mode and "did nothing";
+    // (2) the "keep the live AP and just clear promiscuous" path crashed the
+    // AsyncTCP task when softAP() rebuilt the netif under the still-bound shared
+    // server. A full teardown (the same path that already works when WebUI is
+    // stopped before an attack) sidesteps both.
+    esp_wifi_set_promiscuous(false);
+    esp_wifi_set_promiscuous_rx_cb(NULL);
     wifi_complete_cleanup();
-    delay(100);
+    delay(150);
 
     if (WiFi.getMode() != WIFI_MODE_APSTA) {
         if (!WiFi.mode(WIFI_MODE_APSTA)) {
@@ -243,9 +257,16 @@ bool wifi_atk_setWifi() {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
+    wifi_country_t country = {};
+    strncpy(country.cc, "EG", sizeof(country.cc));
+    country.schan = 1;
+    country.nchan = 13;
+    country.policy = WIFI_COUNTRY_POLICY_MANUAL;
+    esp_wifi_set_country(&country);
+
     if (WiFi.softAPSSID() != bruceConfig.wifiAp.ssid && WiFi.softAPSSID() != WIFI_ATK_NAME) {
         uint8_t randomChannel = random(1, 12);
-        if (!WiFi.softAP(WIFI_ATK_NAME, emptyString, randomChannel, 1, 4, false)) {
+        if (!WiFi.softAP(WIFI_ATK_NAME, emptyString, randomChannel, 1, 10, false)) {
 #if defined(VARIONE_VEMO_UI)
             VariOneUI::showVemoStatus("AP start failed", VariOneUI::VemoStatus::Error, true);
 #else
@@ -253,6 +274,8 @@ bool wifi_atk_setWifi() {
 #endif
             return false;
         }
+        WiFi.setTxPower(WIFI_POWER_19_5dBm);
+        esp_wifi_set_max_tx_power(80);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
     return true;
@@ -455,6 +478,8 @@ ScanNets:
                 count += 3;
                 debriefTotalFrames += 3;
                 if (EscPress) break;
+                if (i % 20 == 0)
+                    vTaskDelay(pdMS_TO_TICKS(1)); // feed idle task + WDT during flood
             }
             if (EscPress) break;
         }
@@ -761,6 +786,7 @@ AGAIN:
     addOptionToMainMenu();
 
     loopOptions(options);
+    debriefRunPending();
     if (!returnToMenu) goto AGAIN;
 }
 

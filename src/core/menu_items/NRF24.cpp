@@ -7,21 +7,26 @@
 #include "modules/NRF24/nrf_spectrum.h"
 
 void NRF24Menu::optionsMenu() {
-    options.clear();
-    options.push_back({"Information", nrf_info});
-    options.push_back({"Spectrum", nrf_spectrum});
+    // Re-loop so BACK from a feature lands back HERE (one step up), not at the main
+    // menu. Exit only on BACK at this level (idx<0) or the explicit "Main Menu".
+    for (;;) {
+        options.clear();
+        options.push_back({"Information", nrf_info});
+        options.push_back({"Spectrum", nrf_spectrum});
     #if !defined(LITE_VERSION) && !defined(VARIONE_HIDE_NRF_EXTRAS)
-    options.push_back({"MouseJack", nrf_mousejack});
+        options.push_back({"MouseJack", nrf_mousejack});
     #endif
-    options.push_back({"NRF Jammer", nrf_jammer});
+        options.push_back({"NRF Jammer", nrf_jammer});
 
 #if defined(ARDUINO_M5STICK_C_PLUS) || defined(ARDUINO_M5STICK_C_PLUS2)
-    options.push_back({"Config pins", [this]() { configMenu(); }});
+        options.push_back({"Config pins", [this]() { configMenu(); }});
 #endif
 
-    addOptionToMainMenu();
+        addOptionToMainMenu();
 
-    loopOptions(options, MENU_TYPE_SUBMENU, "NRF24");
+        int idx = loopOptions(options, MENU_TYPE_SUBMENU, "NRF24");
+        if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) return;
+    }
 }
 
 void NRF24Menu::configMenu() {

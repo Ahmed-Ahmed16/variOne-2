@@ -14,6 +14,7 @@
 #include "modules/varione/keyfob/keyfob_inspect.h"
 
 void RFMenu::optionsMenu() {
+  for (;;) { // re-loop: BACK from a feature returns HERE, not to the main menu
     options = {
         {"Scan/copy",       [=]() { RFScan(); }       },
 #if !defined(LITE_VERSION)
@@ -53,7 +54,9 @@ void RFMenu::optionsMenu() {
     if (bruceConfigPins.rfModule == CC1101_SPI_MODULE) txt += " (CC1101)"; // Indicates if CC1101 is connected
     else txt += " Tx: " + String(bruceConfigPins.rfTx) + " Rx: " + String(bruceConfigPins.rfRx);
 
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    int idx = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) return;
+  }
 }
 
 void RFMenu::configMenu() {

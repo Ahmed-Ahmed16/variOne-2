@@ -39,6 +39,9 @@ static bool s_webRoutesRegistered = false;  // WebUI app routes added once
 static volatile bool s_debriefActive = false; // gates the debrief responses
 static String s_debriefHtml;                // current debrief report HTML
 static volatile bool s_aiSetupActive = false; // gates the AI-setup provisioning form
+static volatile bool s_portalActive = false; // gates a temporary captive feature
+static void *s_portalCtx = nullptr;
+static SharedCaptiveHandler s_portalHandler = nullptr;
 
 // AI Setup provisioning form (plan Part C). Served from the SAME shared port-80
 // server (never a second listener). POST saves WiFi creds + Gemini key into
@@ -200,7 +203,10 @@ String listFiles(FS &fs, String folder) {
                 }
             }
         } else break;
-        esp_task_wdt_reset();
+        // listFiles() runs in the AsyncTCP task, which isn't subscribed to the Task
+        // Watchdog — feeding it there floods the log with "task not found" (one line per
+        // file). Only reset if the current task is actually registered with the TWDT.
+        if (esp_task_wdt_status(NULL) == ESP_OK) esp_task_wdt_reset();
     }
     root.close();
     // log_i("ListFiles End");
@@ -322,17 +328,19 @@ void drawWebUiScreen(bool mode_ap) {
     tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, ALCOLOR);
     if (mode_ap) {
         setTftDisplay(0, 0, bruceConfig.bgColor, FM);
-        tft.drawCentreString("VariOne/varione1", tftWidth / 2, 7, 1);
+        tft.drawCentreString("VariOne (open)", tftWidth / 2, 7, 1);
     }
-    setTftDisplay(0, 0, ALCOLOR, FM);
+    setTftDisplay(0, 0, bruceConfig.priColor, FM);
     tft.drawCentreString("VariOne WebUI", tftWidth / 2, 27, 1);
     String txt;
     if (!mode_ap) txt = WiFi.localIP().toString();
     else txt = WiFi.softAPIP().toString();
-    tft.setTextColor(bruceConfig.priColor);
+    // Neutral white (not the green priColor accent) for the connection details —
+    // the green "highlight" on varione.local/IP/user/pwd read as a status flag.
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
 
     tft.drawCentreString("http://varione.local", tftWidth / 2, 45, 1);
-    setTftDisplay(7, 67);
+    setTftDisplay(7, 67, TFT_WHITE, FM, bruceConfig.bgColor);
 
     tft.setTextSize(FM);
     tft.print("IP: ");
@@ -440,6 +448,10 @@ static bool startMdnsResponder() {
 // sheet, which fetches a probe URL and opens whatever it gets, shows it).
 // Otherwise behave exactly as the WebUI did before: 404.
 static void sharedNotFound(AsyncWebServerRequest *request) {
+    if (s_portalActive && s_portalHandler && s_portalCtx) {
+        s_portalHandler(s_portalCtx, request);
+        return;
+    }
     if (s_debriefActive) {
         request->send(200, "text/html", s_debriefHtml);
         return;
@@ -453,15 +465,30 @@ static void sharedNotFound(AsyncWebServerRequest *request) {
 
 // OS captive-portal probes: bounce to the active captive page, else 404.
 static void captiveProbe(AsyncWebServerRequest *request) {
+    // Redirect to the ACTUAL AP gateway (dynamic, not a hardcoded 192.168.4.1)
+    // so the probe target always matches whatever IP the debrief/AI AP raised on.
+    String apIp = WiFi.softAPIP().toString();
+    if (s_portalActive && s_portalHandler && s_portalCtx) {
+        AsyncWebServerResponse *r = request->beginResponse(302);
+        r->addHeader("Location", "http://" + apIp + "/");
+        r->addHeader("Connection", "close");
+        r->addHeader("Cache-Control", "no-store, must-revalidate"); // don't let a cached "Success" suppress the sheet
+        request->send(r);
+        return;
+    }
     if (s_debriefActive) {
         AsyncWebServerResponse *r = request->beginResponse(302);
-        r->addHeader("Location", "http://192.168.4.1/debrief");
+        r->addHeader("Location", "http://" + apIp + "/debrief");
+        r->addHeader("Connection", "close");
+        r->addHeader("Cache-Control", "no-store, must-revalidate");
         request->send(r);
         return;
     }
     if (s_aiSetupActive) {
         AsyncWebServerResponse *r = request->beginResponse(302);
-        r->addHeader("Location", "http://192.168.4.1/aisetup");
+        r->addHeader("Location", "http://" + apIp + "/aisetup");
+        r->addHeader("Connection", "close");
+        r->addHeader("Cache-Control", "no-store, must-revalidate");
         request->send(r);
         return;
     }
@@ -533,6 +560,43 @@ void ensureWebServer() {
     Serial.println("[WEB] shared server listening on :80 (persistent)");
 }
 
+static bool routeActivePortal(AsyncWebServerRequest *request) {
+    if (s_portalActive && s_portalHandler && s_portalCtx) {
+        s_portalHandler(s_portalCtx, request);
+        return true;
+    }
+    // Debrief / AI-setup also own the captive AP — serve the report/form at root "/"
+    // too (not just unknown paths via sharedNotFound), so a phone that doesn't auto-pop
+    // the captive sheet (e.g. Samsung OneUI) and is pointed at 192.168.4.1/ gets the
+    // report instead of the WebUI's 404 ("Nothing in here Sharky"). iPhone/Pixel hit a
+    // probe URL -> captiveProbe -> /debrief and never touch "/", so they're unaffected.
+    if (s_debriefActive) {
+        request->send(200, "text/html", s_debriefHtml);
+        return true;
+    }
+    if (s_aiSetupActive) {
+        request->send(200, "text/html", AI_SETUP_FORM);
+        return true;
+    }
+    return false;
+}
+
+void webPortalBegin(void *ctx, SharedCaptiveHandler handler) {
+    s_portalCtx = ctx;
+    s_portalHandler = handler;
+    s_portalActive = (ctx != nullptr && handler != nullptr);
+    ensureWebServer();
+}
+
+void webPortalEnd(void *ctx) {
+    if (ctx != nullptr && ctx != s_portalCtx) return;
+    s_portalActive = false;
+    s_portalCtx = nullptr;
+    s_portalHandler = nullptr;
+}
+
+bool webPortalActive() { return s_portalActive; }
+
 /**********************************************************************
 **  Function: webDebriefBegin / webDebriefEnd
 **  Arm/disarm serving a debrief report from the shared server.
@@ -568,6 +632,11 @@ void configureWebServer() {
 
     // Index
     server->on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (routeActivePortal(request)) return;
+        if (!isWebUIActive) {
+            notFound(request);
+            return;
+        }
         if (checkUserWebAuth(request, true)) {
             serveWebUIFile(request, "index.html", "text/html", true, index_html, index_html_size);
         }
@@ -579,7 +648,19 @@ void configureWebServer() {
             String username = request->getParam("username", true)->value();
             String password = request->getParam("password", true)->value();
 
-            if (username == bruceConfig.webUI.user && password == bruceConfig.webUI.pwd) {
+            // Case-insensitive login: lowercase both sides so judges can't fail on
+            // a stray caps-lock during the demo. (Normalizing both operands here
+            // makes save-side normalization redundant.)
+            String inUser = username;
+            inUser.toLowerCase();
+            String inPwd = password;
+            inPwd.toLowerCase();
+            String cfgUser = String(bruceConfig.webUI.user);
+            cfgUser.toLowerCase();
+            String cfgPwd = String(bruceConfig.webUI.pwd);
+            cfgPwd.toLowerCase();
+
+            if (inUser == cfgUser && inPwd == cfgPwd) {
                 String token = generateToken();
                 AsyncWebServerResponse *response = request->beginResponse(302);
                 response->addHeader("Location", "/");

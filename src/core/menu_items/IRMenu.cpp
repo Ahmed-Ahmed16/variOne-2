@@ -6,14 +6,17 @@
 #include "modules/ir/custom_ir.h"
 #include "modules/ir/ir_jammer.h"
 #include "modules/ir/ir_read.h"
+#include "modules/ir/universal_remote.h"
 
 void IRMenu::optionsMenu() {
 #if defined(ARDUINO_M5STICK_S3)
     bool prevPower = M5.Power.getExtOutput();
     M5.Power.setExtOutput(true); // ENABLE 5V OUTPUT
 #endif
+    for (;;) { // re-loop: BACK from a feature returns HERE, not to the main menu
     options = {
         {"TV-B-Gone", StartTvBGone              },
+        {"Universal", universalRemoteMenu       },
         {"Custom IR", otherIRcodes              },
         {"IR Read",   [=]() { IrRead(); }       },
 #if !defined(LITE_VERSION) && !defined(VARIONE_HIDE_IR_EXTRAS)
@@ -26,7 +29,9 @@ void IRMenu::optionsMenu() {
     String txt = "Infrared";
     txt += " Tx: " + String(bruceConfigPins.irTx) + " Rx: " + String(bruceConfigPins.irRx) +
            " Rpts: " + String(bruceConfigPins.irTxRepeats);
-    loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    int idx = loopOptions(options, MENU_TYPE_SUBMENU, txt.c_str());
+    if (idx < 0 || (idx < (int)options.size() && options[idx].label == "Main Menu")) break;
+    }
 #if defined(ARDUINO_M5STICK_S3)
     M5.Power.setExtOutput(prevPower);
 #endif

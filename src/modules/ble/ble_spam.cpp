@@ -207,6 +207,7 @@ BLEAdvertisementData GetUniversalAdvertisementData(EBLEPayloadType Type, String 
             break;
         }
         case Google: {
+            // Generic Android uses Google Fast Pair; popups are Play Services and screen-state dependent.
             const uint32_t model = android_models[rand() % android_models_count].value;
             uint8_t Google_Data[14] = {
                 0x03,
@@ -257,10 +258,10 @@ void executeSpam(EBLEPayloadType type, String customName = "") {
 
     pAdvertising->setAdvertisementData(advertisementData);
     pAdvertising->setScanResponseData(oScanResponseData);
-    pAdvertising->setMinInterval(32);
-    pAdvertising->setMaxInterval(48);
+    pAdvertising->setMinInterval(type == Google ? 24 : 32);
+    pAdvertising->setMaxInterval(type == Google ? 36 : 48);
     pAdvertising->start();
-    vTaskDelay(20 / portTICK_PERIOD_MS);
+    vTaskDelay((type == Google ? 35 : 20) / portTICK_PERIOD_MS);
 
     pAdvertising->stop();
     vTaskDelay(5 / portTICK_PERIOD_MS);
@@ -326,14 +327,17 @@ void ibeacon(const char *DeviceName, const char *BEACON_UUID, int ManufacturerId
     padprintln("");
     padprintln("Press Any key to STOP.");
 
+    int advBursts = 0;
     while (!check(AnyKeyPress)) {
         pAdvertising->start();
-        Serial.println("Advertizing started...");
         vTaskDelay(20 / portTICK_PERIOD_MS);
         pAdvertising->stop();
         vTaskDelay(5 / portTICK_PERIOD_MS);
-        Serial.println("Advertizing stop");
+        // Narration (Part B3) — throttled burst count, not per-advert.
+        if (++advBursts % 20 == 0)
+            Serial.printf(">> BLE: iBeacon spam advertising - %d bursts\n", advBursts);
     }
+    Serial.println(">> BLE: spam stopped");
 
 #if defined(CONFIG_IDF_TARGET_ESP32C5)
     esp_bt_controller_deinit();
@@ -358,7 +362,7 @@ void aj_adv(int ble_choice) {
         padprintln("Press ESC to stop");
 
         while (1) {
-            if (check(EscPress)) {
+            if (check(EscPress) || check(AnyKeyPress)) { // any key stops
                 returnToMenu = true;
                 break;
             }
@@ -401,7 +405,7 @@ void aj_adv(int ble_choice) {
 
             count++;
 
-            if (check(EscPress)) {
+            if (check(EscPress) || check(AnyKeyPress)) { // any key stops
                 returnToMenu = true;
                 break;
             }
@@ -452,7 +456,7 @@ void aj_adv(int ble_choice) {
         }
         count++;
 
-        if (check(EscPress)) {
+        if (check(EscPress) || check(AnyKeyPress)) { // any key stops
             returnToMenu = true;
             break;
         }
@@ -481,7 +485,6 @@ void spamMenu() {
 #if !defined(LITE_VERSION)
     options.push_back({"Apple Spam", [=]() { appleSubMenu(); }});
 #endif
-    options.push_back({"Apple Spam (Legacy)", [=]() { legacySubMenu(); }});
     options.push_back({"Windows Spam", lambdaHelper(aj_adv, 2)});
     options.push_back({"Samsung Spam", lambdaHelper(aj_adv, 3)});
     options.push_back({"Android Spam", lambdaHelper(aj_adv, 4)});

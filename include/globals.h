@@ -72,7 +72,7 @@ extern BruceConfig bruceConfig;
 extern BruceConfigPins bruceConfigPins;
 extern SerialCli serialCli;
 extern SerialDevice *serialDevice;
-extern USBSerial USBserial;
+extern BruceUSBSerial USBserial;
 extern StartupApp startupApp;
 
 extern char timeStr[16];

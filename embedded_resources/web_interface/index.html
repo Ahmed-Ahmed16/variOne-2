@@ -61,6 +61,9 @@
           <button class="btn-action act-navigation" onclick="openNavigator()">
             Navigator
           </button>
+          <button class="btn-action" onclick="toggleSpectator()">
+            Spectator View
+          </button>
         </div>
         <div class="right-part">
           <button class="btn-action" onclick="Dialog.show('settings')">
@@ -729,6 +732,12 @@
           </button>
           <button class="btn-action act-dialog-close act-escape">Close</button>
         </div>
+      </div>
+    </div>
+    <div class="spectator-panel hidden">
+      <div class="dialog-head">Spectator View</div>
+      <div class="dialog-body">
+        <canvas id="spectator-screen"></canvas>
       </div>
     </div>
     <div class="loading-area hidden">

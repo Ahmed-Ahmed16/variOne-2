@@ -1,0 +1,590 @@
+<!doctype html>
+<!--
+  VariOne USB-Serial Screen Mirror  (Part E of the demo hardening plan)
+  =====================================================================
+  Standalone host page — NO install, NO web server, NO WiFi. Open this file
+  directly in Chrome or Edge (desktop), click Connect, pick the VariOne USB
+  port. It sends "display start" to the device, then renders the device's
+  draw-log (0xAA packets, same format as the WebUI spectator's renderTFT) onto
+  a canvas, and shows the device's ">>" plain-English narration as a caption
+  ticker. Fullscreen the canvas -> laptop HDMI -> projector/Casio.
+
+  Branding mirrors the WebUI (embedded_resources/web_interface/index.css) — same
+  --vo-* tokens, cyan accent, surfaces, fonts, button + panel styles.
+
+  Because it rides the existing USB CDC serial, it works DURING live WiFi
+  attacks (unlike the WebUI spectator, which holds the device AP).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VariOne · USB Screen Mirror</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101a25'/%3E%3Cpath d='M8 9 L16 23 L24 9' fill='none' stroke='%235fd0ff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        /* --- VariOne brand tokens (copied from WebUI index.css) --- */
+        --vo-cyan: #5fd0ff;
+        --vo-cyan-2: #2bb7e6;
+        --vo-navy: #192a3a;
+        --vo-bg: #070b10;
+        --vo-bg-2: #0b1219;
+        --vo-panel: #101a25;
+        --vo-panel-2: #0c141d;
+        --vo-border: #1b2a3a;
+        --vo-border-strong: #24384c;
+        --vo-text: #e9f1f8;
+        --vo-text-muted: #8597aa;
+        --vo-green: #57e39b;
+        --vo-gold: #ffd35e;
+        --vo-amber: #ffb15e;
+        --vo-red: #ff7a90;
+        --vo-radius: 14px;
+        --vo-radius-sm: 8px;
+        --vo-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+        --vo-accent: var(--vo-cyan);
+        --vo-font-sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --vo-font-mono: "DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", monospace;
+        --on-accent: #04161f;
+      }
+      * { box-sizing: border-box; font-family: var(--vo-font-sans); color: var(--vo-text); }
+      html, body { margin: 0; padding: 0; height: 100%; }
+      body {
+        background:
+          radial-gradient(1100px 540px at 80% -10%, #14283a 0%, transparent 55%),
+          radial-gradient(900px 500px at 0% 0%, #122033 0%, transparent 50%),
+          var(--vo-bg);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+        font-size: 13px;
+        display: flex; flex-direction: column;
+      }
+      ::selection { background: var(--vo-accent); color: var(--on-accent); }
+
+      /* ── header (mirrors .container .header) ───────────────────── */
+      header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 10px 16px;
+        background: var(--vo-panel-2);
+        border-bottom: 1px solid var(--vo-border);
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
+      .brand .mark { width: 26px; height: 26px; flex: 0 0 auto; }
+      .brand .wm i { color: var(--vo-cyan); font-style: normal; }
+      .brand .sub { color: var(--vo-text-muted); font-weight: 600; letter-spacing: 0.5px; font-size: 12px; }
+      .spacer { flex: 1; }
+
+      /* status pill */
+      .pill {
+        font-family: var(--vo-font-mono); font-size: 12px; padding: 4px 11px;
+        border-radius: 999px; border: 1px solid var(--vo-border-strong);
+        background: var(--vo-panel-2); color: var(--vo-text-muted);
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vo-text-muted); }
+      .pill.on { color: var(--vo-green); border-color: color-mix(in srgb, var(--vo-green) 45%, transparent); }
+      .pill.on .dot { background: var(--vo-green); box-shadow: 0 0 8px var(--vo-green); }
+      .pill.busy { color: var(--vo-amber); border-color: color-mix(in srgb, var(--vo-amber) 45%, transparent); }
+      .pill.busy .dot { background: var(--vo-amber); }
+      .pill.err { color: var(--vo-red); border-color: color-mix(in srgb, var(--vo-red) 45%, transparent); }
+      .pill.err .dot { background: var(--vo-red); }
+
+      /* buttons (mirror .btn-action / .btn-default) */
+      button {
+        border: 1px solid var(--vo-border-strong); background: var(--vo-panel-2);
+        color: var(--vo-text); padding: 7px 13px; border-radius: var(--vo-radius-sm);
+        cursor: pointer; font-size: 13px; font-weight: 600;
+        transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+      }
+      button:hover:not(:disabled) { background: var(--vo-accent); border-color: var(--vo-accent); color: var(--on-accent); }
+      button:disabled { filter: brightness(55%); cursor: not-allowed; }
+      button.primary {
+        font-weight: 800; border: 1px solid var(--vo-accent); color: var(--vo-accent);
+        background: color-mix(in srgb, var(--vo-accent) 12%, transparent);
+      }
+      button.primary:hover:not(:disabled) { color: var(--on-accent); background: var(--vo-accent); }
+      label.chk { font-size: 12px; color: var(--vo-text-muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+      label.chk input { accent-color: var(--vo-cyan); }
+
+      /* ── stage ─────────────────────────────────────────────────── */
+      main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; padding: 16px; }
+
+      /* getting-started card (shown until connected) */
+      #intro {
+        max-width: 460px; width: 100%;
+        background: linear-gradient(180deg, var(--vo-panel), var(--vo-panel-2));
+        border: 1px solid var(--vo-border); border-radius: var(--vo-radius);
+        box-shadow: var(--vo-shadow); padding: 26px 28px; text-align: center;
+      }
+      #intro .big-mark { width: 56px; height: 56px; margin-bottom: 8px; }
+      #intro h2 { margin: 4px 0 4px; font-size: 19px; letter-spacing: .5px; }
+      #intro p { margin: 0 0 18px; color: var(--vo-text-muted); font-size: 13px; }
+      #intro ol { text-align: left; margin: 0 0 20px; padding-left: 20px; color: var(--vo-text); line-height: 1.9; font-size: 13px; }
+      #intro ol b { color: var(--vo-cyan); }
+      #intro .cta { display: flex; gap: 10px; justify-content: center; }
+      #intro .hint { margin-top: 14px; font-size: 11px; color: var(--vo-text-muted); font-family: var(--vo-font-mono); }
+
+      /* the mirror (hidden until connected) */
+      #stage { display: none; position: relative; width: 100%; height: 100%; align-items: center; justify-content: center; }
+      #stage.show { display: flex; }
+      canvas#screen {
+        image-rendering: auto; background: #000;
+        border: 1px solid var(--vo-border-strong); border-radius: var(--vo-radius-sm);
+        box-shadow: var(--vo-shadow);
+        cursor: zoom-in;
+      }
+      /* connection hint — DOM overlay, never painted onto the canvas (so it can't
+         pollute the mirrored pixels on a static screen) */
+      #hint {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        color: var(--vo-cyan-2); font-family: var(--vo-font-mono);
+        font-size: clamp(13px, 1.6vw, 18px); text-align: center; pointer-events: none;
+        padding: 0 16px; max-width: 88%; text-shadow: 0 1px 6px #000; line-height: 1.5;
+      }
+      #hint.hidden { display: none; }
+      /* caption ticker — device ">>" narration */
+      #captions {
+        position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 22px 16px;
+        background: linear-gradient(transparent, rgba(7, 11, 16, 0.92) 40%);
+        font-family: var(--vo-font-mono); font-size: clamp(15px, 2.1vw, 26px);
+        pointer-events: none; line-height: 1.4; min-height: 2.6em;
+      }
+      #captions .cap { color: var(--vo-cyan); text-shadow: 0 1px 6px #000; }
+      #captions .cap.old { color: var(--vo-text-muted); }
+      #captions .cap::before { content: "▸ "; color: var(--vo-cyan-2); }
+
+      /* unsupported-browser banner */
+      #unsupported {
+        display: none; background: color-mix(in srgb, var(--vo-red) 14%, transparent);
+        border: 1px solid color-mix(in srgb, var(--vo-red) 50%, transparent);
+        color: var(--vo-red); padding: 9px 16px; text-align: center; font-size: 13px;
+      }
+      #unsupported.show { display: block; }
+
+      /* raw log drawer */
+      #rawlog {
+        max-height: 0; overflow: auto; transition: max-height .2s; width: 100%;
+        font-family: var(--vo-font-mono); font-size: 11px; color: var(--vo-text-muted);
+        background: var(--vo-bg-2); border-top: 1px solid transparent;
+      }
+      #rawlog.show { max-height: 170px; padding: 8px 16px; border-top-color: var(--vo-border); }
+      #rawlog .sent { color: var(--vo-cyan-2); }
+
+      footer {
+        background: var(--vo-panel-2); border-top: 1px solid var(--vo-border);
+        padding: 6px 16px; font-size: 11px; color: var(--vo-text-muted);
+        display: flex; gap: 14px; align-items: center; font-family: var(--vo-font-mono);
+      }
+
+      @media (max-width: 640px) {
+        header { flex-wrap: wrap; gap: 8px; }
+        .brand .sub { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- VariOne "V" mark, reused below -->
+    <template id="markTpl">
+      <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="7" fill="#101a25" />
+        <path d="M8 9 L16 23 L24 9" fill="none" stroke="#5fd0ff" stroke-width="3.5"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </template>
+
+    <header>
+      <div class="brand">
+        <span id="hdrMark"></span>
+        <span class="wm">VAR<i>I</i>ONE</span>
+        <span class="sub">· USB SCREEN MIRROR</span>
+      </div>
+      <span class="spacer"></span>
+      <span id="status" class="pill"><span class="dot"></span><span id="statusText">disconnected</span></span>
+      <label class="chk"><input type="checkbox" id="autostart" checked /> auto&nbsp;start</label>
+      <button id="connectBtn" class="primary">Connect</button>
+      <button id="fsBtn" disabled>Fullscreen</button>
+      <button id="logBtn">Raw log</button>
+    </header>
+
+    <div id="unsupported">
+      This browser has no <b>Web Serial API</b>. Open this page in <b>Chrome</b> or <b>Edge</b> on desktop.
+    </div>
+
+    <main>
+      <!-- landing card -->
+      <div id="intro">
+        <span id="introMark"></span>
+        <h2>Mirror your VariOne</h2>
+        <p>Screen + live narration over USB — works during attacks, no WiFi.</p>
+        <ol>
+          <li>Plug the VariOne into this laptop by <b>USB</b>.</li>
+          <li>Click <b>Connect</b> and pick the device port.</li>
+          <li>Hit <b>Fullscreen</b> → HDMI → projector.</li>
+        </ol>
+        <div class="cta">
+          <button id="introConnect" class="primary">Connect device</button>
+          <button id="introReconnect" style="display:none">Reconnect last</button>
+        </div>
+        <div class="hint">Chrome / Edge · 115200 baud · keys: C connect · F fullscreen · L log</div>
+      </div>
+
+      <!-- live mirror -->
+      <div id="stage">
+        <canvas id="screen" width="240" height="320"></canvas>
+        <div id="hint" class="hidden"></div>
+        <div id="captions"><span class="cap"></span></div>
+      </div>
+    </main>
+
+    <div id="rawlog"></div>
+
+    <footer>
+      <span>packets <b id="pktN" style="color:var(--vo-text)">0</b></span>
+      <span>narration <b id="capN" style="color:var(--vo-text)">0</b></span>
+      <span class="spacer" style="flex:1"></span>
+      <span>reuses WebUI renderTFT draw-log · 0xAA packets → canvas, “&gt;&gt;” → captions</span>
+    </footer>
+
+    <script>
+      "use strict";
+      const $ = (s) => document.querySelector(s);
+      // clone the brand mark into header + intro
+      const markTpl = $("#markTpl").content;
+      $("#hdrMark").appendChild(markTpl.cloneNode(true));
+      const introMark = markTpl.cloneNode(true);
+      introMark.querySelector("svg").classList.add("big-mark");
+      $("#introMark").appendChild(introMark);
+
+      const canvas = $("#screen");
+      const ctx = canvas.getContext("2d");
+      const statusEl = $("#status"), statusText = $("#statusText");
+      const captionsEl = $("#captions");
+      const hintEl = $("#hint");
+      const rawlog = $("#rawlog");
+      let pktCount = 0, capCount = 0, gotFrame = false;
+      const SS = 3;              // supersample factor: draw at SSx device res for crisp text
+      let devW = 240, devH = 320; // device px (updated by SCREEN_INFO)
+
+      function setStatus(text, cls) { statusText.textContent = text; statusEl.className = "pill " + (cls || ""); }
+      function showStage(on) { $("#stage").classList.toggle("show", on); $("#intro").style.display = on ? "none" : ""; }
+      function logRaw(line, cls) {
+        const d = document.createElement("div");
+        d.textContent = line; if (cls) d.className = cls;
+        rawlog.appendChild(d);
+        while (rawlog.childNodes.length > 400) rawlog.removeChild(rawlog.firstChild);
+        rawlog.scrollTop = rawlog.scrollHeight;
+      }
+
+      // ── RGB565 → CSS (identical to firmware renderTFT) ───────────
+      const color565toCSS = (c) => {
+        const r = (((c >> 11) & 0x1f) * 255) / 31;
+        const g = (((c >> 5) & 0x3f) * 255) / 63;
+        const b = ((c & 0x1f) * 255) / 31;
+        return `rgb(${r},${g},${b})`;
+      };
+      const drawRoundRect = (input, fill) => {
+        const { x, y, w, h, r } = input;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        fill ? ctx.fill() : ctx.stroke();
+      };
+
+      // field layout per draw-fn (ported from index.js byteToObject keysMap)
+      const KEYS = {
+        0:["fg"], 1:["x","y","w","h","fg"], 2:["x","y","w","h","fg"],
+        3:["x","y","w","h","r","fg"], 4:["x","y","w","h","r","fg"],
+        5:["x","y","r","fg"], 6:["x","y","r","fg"],
+        7:["x","y","x2","y2","x3","y3","fg"], 8:["x","y","x2","y2","x3","y3","fg"],
+        9:["x","y","rx","ry","fg"], 10:["x","y","rx","ry","fg"],
+        11:["x","y","x1","y1","fg"], 12:["x","y","r","ir","startAngle","endAngle","fg","bg"],
+        13:["x","y","bx","by","wd","fg","bg"], 14:["x","y","size","fg","bg","txt"],
+        15:["x","y","size","fg","bg","txt"], 16:["x","y","size","fg","bg","txt"],
+        17:["x","y","size","fg","bg","txt"], 18:["x","y","center","ms","fs","file"],
+        19:["x","y","fg"], 20:["x","y","h","fg"], 21:["x","y","w","fg"],
+        99:["w","h","rotation"],
+      };
+
+      function parsePacket(pkt) {
+        const size = pkt[1], fn = pkt[2];
+        let p = 3;
+        const i16 = () => { const v = (pkt[p] << 8) | pkt[p + 1]; p += 2; return v; };
+        const i8 = () => pkt[p++];
+        const str = (n) => new TextDecoder().decode(pkt.slice(p, p + n));
+        const out = { __fn: fn };
+        let left = size - 3;
+        for (const key of (KEYS[fn] || [])) {
+          if (key === "txt" || key === "file") out[key] = str(left);
+          else if (key === "rotation" || key === "fs") { left -= 1; out[key] = i8(); }
+          else { left -= 2; out[key] = i16(); }
+        }
+        return out;
+      }
+
+      // draw onto the PERSISTENT canvas (FILLSCREEN clears; others accumulate)
+      function drawPacket(input) {
+        const fn = input.__fn;
+        ctx.beginPath(); ctx.lineWidth = 1; ctx.fillStyle = "black"; ctx.strokeStyle = "black";
+        switch (fn) {
+          case 99:
+            if (devW !== input.w || devH !== input.h) {
+              devW = input.w; devH = input.h;
+              canvas.width = devW * SS; canvas.height = devH * SS;
+              ctx.setTransform(SS, 0, 0, SS, 0, 0); // resize resets transform — re-apply SSx
+              fitCanvas();
+            }
+            if (!gotFrame) showHint("connected — navigate the VariOne to mirror its screen");
+            break;
+          case 0: ctx.fillStyle = color565toCSS(input.fg); ctx.fillRect(0, 0, devW, devH); break;
+          case 1: ctx.strokeStyle = color565toCSS(input.fg); ctx.strokeRect(input.x, input.y, input.w, input.h); break;
+          case 2: ctx.fillStyle = color565toCSS(input.fg); ctx.fillRect(input.x, input.y, input.w, input.h); break;
+          case 3: ctx.strokeStyle = color565toCSS(input.fg); drawRoundRect(input, false); break;
+          case 4: ctx.fillStyle = color565toCSS(input.fg); drawRoundRect(input, true); break;
+          case 5: ctx.strokeStyle = color565toCSS(input.fg); ctx.arc(input.x, input.y, input.r, 0, Math.PI*2); ctx.stroke(); break;
+          case 6: ctx.fillStyle = color565toCSS(input.fg); ctx.arc(input.x, input.y, input.r, 0, Math.PI*2); ctx.fill(); break;
+          case 7: ctx.strokeStyle = color565toCSS(input.fg); ctx.beginPath(); ctx.moveTo(input.x,input.y); ctx.lineTo(input.x2,input.y2); ctx.lineTo(input.x3,input.y3); ctx.closePath(); ctx.stroke(); break;
+          case 8: ctx.fillStyle = color565toCSS(input.fg); ctx.beginPath(); ctx.moveTo(input.x,input.y); ctx.lineTo(input.x2,input.y2); ctx.lineTo(input.x3,input.y3); ctx.closePath(); ctx.fill(); break;
+          case 9: ctx.strokeStyle = color565toCSS(input.fg); ctx.beginPath(); ctx.ellipse(input.x,input.y,input.rx,input.ry,0,0,Math.PI*2); ctx.stroke(); break;
+          case 10: ctx.fillStyle = color565toCSS(input.fg); ctx.beginPath(); ctx.ellipse(input.x,input.y,input.rx,input.ry,0,0,Math.PI*2); ctx.fill(); break;
+          case 11: ctx.strokeStyle = color565toCSS(input.fg); ctx.moveTo(input.x,input.y); ctx.lineTo(input.x1,input.y1); ctx.stroke(); break;
+          case 12: { ctx.strokeStyle = color565toCSS(input.fg); ctx.lineWidth = (input.r - input.ir) || 1;
+                     const sa = (((input.startAngle+90)||0)*Math.PI)/180, ea = (((input.endAngle+90)||0)*Math.PI)/180, rad=(input.r+input.ir)/2;
+                     ctx.beginPath(); ctx.arc(input.x,input.y,rad,sa,ea); ctx.stroke(); break; }
+          case 13: ctx.strokeStyle = color565toCSS(input.fg); ctx.lineWidth = input.wd||1; ctx.moveTo(input.x,input.y); ctx.lineTo(input.bx,input.by); ctx.stroke(); break;
+          case 14: case 15: case 16: case 17: {
+            if (input.bg === input.fg) input.bg = 0;
+            input.txt = (input.txt || "").replaceAll("\\n", "");
+            ctx.fillStyle = color565toCSS(input.bg);
+            const fw = input.size === 3 ? 13.5 : input.size === 2 ? 9 : 4.5;
+            let o = 0; if (fn === 15) o = input.txt.length * fw; if (fn === 14) o = (input.txt.length * fw) / 2;
+            ctx.fillRect(input.x - o, input.y, input.txt.length * fw, input.size * 8);
+            ctx.fillStyle = color565toCSS(input.fg);
+            ctx.font = `${input.size * 8}px monospace`; ctx.textBaseline = "top";
+            ctx.textAlign = fn === 14 ? "center" : fn === 15 ? "right" : "left";
+            ctx.fillText(input.txt, input.x, input.y);
+            break;
+          }
+          case 18: break; // DRAWIMAGE — device HTTP /file unreachable over USB; skipped
+          case 19: ctx.fillStyle = color565toCSS(input.fg); ctx.fillRect(input.x, input.y, 1, 1); break;
+          case 20: ctx.fillStyle = color565toCSS(input.fg); ctx.fillRect(input.x, input.y, 1, input.h); break;
+          case 21: ctx.fillStyle = color565toCSS(input.fg); ctx.fillRect(input.x, input.y, input.w, 1); break;
+        }
+      }
+
+      // ── captions ─────────────────────────────────────────────────
+      const capHistory = [];
+      const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      function pushCaption(line) {
+        capCount++; $("#capN").textContent = capCount;
+        const txt = line.replace(/^>>\s?/, "");
+        capHistory.push(txt); while (capHistory.length > 3) capHistory.shift();
+        captionsEl.innerHTML = capHistory
+          .map((l, i) => `<div class="cap ${i < capHistory.length - 1 ? "old" : ""}">${escapeHtml(l)}</div>`)
+          .join("");
+      }
+
+      // ── byte-stream demux FSM: TEXT / PKT_SIZE / PKT_BODY ───────
+      const TEXT = 0, PKT_SIZE = 1, PKT_BODY = 2;
+      let state = TEXT, textBuf = "", pkt = [], pktSize = 0;
+      function feedByte(b) {
+        switch (state) {
+          case TEXT:
+            if (b === 0xaa) { flushText(); pkt = [0xaa]; state = PKT_SIZE; }
+            else if (b === 0x0a || b === 0x0d) flushText();
+            else if (b >= 0x20 && b < 0x7f) textBuf += String.fromCharCode(b);
+            break;
+          case PKT_SIZE:
+            pktSize = b; pkt.push(b);
+            if (pktSize < 3 || pktSize > 128) { state = TEXT; textBuf = ""; } else state = PKT_BODY;
+            break;
+          case PKT_BODY:
+            pkt.push(b);
+            if (pkt.length >= pktSize) { handlePacket(pkt); state = TEXT; }
+            break;
+        }
+      }
+      function flushText() {
+        const line = textBuf.trim(); textBuf = "";
+        if (!line) return;
+        if (line.startsWith(">>QR:")) { renderQR(line.slice(5)); return; } // QR matrix line
+        if (line.startsWith(">>")) pushCaption(line);
+        logRaw(line);
+      }
+
+      // ">>QR:offX,offY,mult,WD,<hex matrix>" — device sends the whole QR as one line
+      // (per-module rects overflow the device draw-log). Draw black modules onto the
+      // white background that fillScreen already streamed.
+      function renderQR(s) {
+        const p = s.split(",");
+        if (p.length < 5) return;
+        const offX = +p[0], offY = +p[1], mult = +p[2], WD = +p[3], hex = p[4];
+        const bitAt = (i) => (parseInt(hex.substr((i >> 3) * 2, 2), 16) >> (7 - (i & 7))) & 1;
+        ctx.fillStyle = "#000";
+        let i = 0;
+        for (let yy = 0; yy < WD; yy++)
+          for (let xx = 0; xx < WD; xx++, i++)
+            if (bitAt(i)) ctx.fillRect(offX + xx * mult, offY + yy * mult, mult, mult);
+        gotFrame = true; hideHint();
+        pktCount++; $("#pktN").textContent = pktCount;
+      }
+      function handlePacket(arr) {
+        try {
+          const input = parsePacket(Uint8Array.from(arr));
+          drawPacket(input);
+          gotAnyPacket = true;                     // command landed (snapshot/SCREEN_INFO/any)
+          if (input.__fn !== 99) { gotFrame = true; hideHint(); } // real draw → drop the hint
+          pktCount++; if (pktCount % 8 === 0) $("#pktN").textContent = pktCount;
+        } catch (e) { /* malformed — drop, resync on next 0xAA */ }
+      }
+
+      // ── canvas fit ───────────────────────────────────────────────
+      function fitCanvas() {
+        const wrap = $("main");
+        const fs = document.fullscreenElement;
+        const availW = (fs ? window.innerWidth : wrap.clientWidth) - 32;
+        const availH = (fs ? window.innerHeight : wrap.clientHeight) - 32;
+        const scale = Math.max(1, Math.min(availW / canvas.width, availH / canvas.height));
+        canvas.style.width = canvas.width * scale + "px";
+        canvas.style.height = canvas.height * scale + "px";
+      }
+      window.addEventListener("resize", fitCanvas);
+      document.addEventListener("fullscreenchange", fitCanvas);
+
+      // ── Web Serial ───────────────────────────────────────────────
+      let port = null, reader = null, writer = null, keepReading = false;
+      let framesWatch = null, gotAnyPacket = false;
+
+      async function openPort(p) {
+        port = p;
+        await port.open({ baudRate: 115200, bufferSize: 8192 });
+        setStatus("connected", "on");
+        $("#connectBtn").textContent = "Disconnect";
+        $("#fsBtn").disabled = false;
+        showStage(true); fitCanvas();
+        gotFrame = false;
+        showHint("connected — navigate the VariOne to mirror its screen");
+        if (port.writable) writer = port.writable.getWriter();
+        gotAnyPacket = false;
+        keepReading = true; readLoop();
+        if ($("#autostart").checked) { await sendLine("display start"); startFramesWatchdog(); }
+      }
+      async function connect(preGranted) {
+        if (!("serial" in navigator)) { $("#unsupported").classList.add("show"); setStatus("unsupported", "err"); return; }
+        try {
+          setStatus("connecting…", "busy");
+          const p = preGranted || (await navigator.serial.requestPort());
+          await openPort(p);
+        } catch (e) { setStatus("connect failed", "err"); logRaw("[error] " + e.message); }
+      }
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      async function readLoop() {
+        try {
+          while (keepReading && port && port.readable) {
+            reader = port.readable.getReader();
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) for (let i = 0; i < value.length; i++) feedByte(value[i]);
+              }
+            } catch (e) { logRaw("[read error] " + e.message); break; }
+            finally { try { reader.releaseLock(); } catch (e) {} }
+          }
+        } catch (e) { logRaw("[loop error] " + e.message); }
+        // Port died while we still want it (device rebooted / re-enumerated / replugged)
+        // → auto-reconnect to the same granted port and re-arm streaming.
+        if (keepReading) attemptReconnect();
+      }
+
+      async function attemptReconnect() {
+        if (!keepReading) return;
+        setStatus("device lost — reconnecting…", "busy");
+        gotFrame = false; showHint("device lost — reconnecting…");
+        try { if (writer) { writer.releaseLock(); writer = null; } } catch (e) {}
+        try { if (port) await port.close(); } catch (e) {}
+        port = null;
+        while (keepReading) {
+          try {
+            const ports = await navigator.serial.getPorts();
+            if (ports && ports.length) { await openPort(ports[0]); return; } // re-sends display start
+          } catch (e) { /* not back yet */ }
+          await sleep(1500);
+        }
+      }
+      async function sendLine(s) {
+        if (!writer) return;
+        await writer.write(new TextEncoder().encode(s + "\n"));
+        logRaw("» " + s, "sent");
+      }
+
+      // After connect the device may still be printing BOOT logs and eat the first
+      // "display start" (seen as `COMMAND: E (915)…display start / not found`). Re-send
+      // every 2.5s until a packet actually arrives (also re-pushes a snapshot if it was
+      // already running). Stops on first packet, or after ~20s.
+      function startFramesWatchdog() {
+        clearInterval(framesWatch);
+        let tries = 0;
+        framesWatch = setInterval(async () => {
+          if (!port || gotAnyPacket || tries++ > 8) { clearInterval(framesWatch); framesWatch = null; return; }
+          try { await sendLine("display start"); } catch (e) {}
+        }, 2500);
+      }
+      async function disconnect() {
+        keepReading = false;
+        clearInterval(framesWatch); framesWatch = null;
+        try { if ($("#autostart").checked) await sendLine("display stop"); } catch (e) {}
+        try { if (reader) await reader.cancel(); } catch (e) {}
+        try { if (writer) { writer.releaseLock(); writer = null; } } catch (e) {}
+        try { if (port) await port.close(); } catch (e) {}
+        port = null;
+        setStatus("disconnected"); $("#connectBtn").textContent = "Connect"; $("#fsBtn").disabled = true; showStage(false);
+      }
+      function toggleConnect() { port ? disconnect() : connect(); }
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) { if (port) $("#stage").requestFullscreen().then(fitCanvas); }
+        else document.exitFullscreen();
+      }
+
+      // wiring
+      $("#connectBtn").addEventListener("click", toggleConnect);
+      $("#introConnect").addEventListener("click", () => connect());
+      $("#fsBtn").addEventListener("click", toggleFullscreen);
+      canvas.addEventListener("click", toggleFullscreen);
+      $("#logBtn").addEventListener("click", () => rawlog.classList.toggle("show"));
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        const k = e.key.toLowerCase();
+        if (k === "c") toggleConnect();
+        else if (k === "f") toggleFullscreen();
+        else if (k === "l") rawlog.classList.toggle("show");
+      });
+
+      // unsupported-browser hint up front; offer one-click reconnect to a known port
+      if (!("serial" in navigator)) { $("#unsupported").classList.add("show"); setStatus("unsupported", "err"); }
+      else navigator.serial.getPorts().then((ports) => {
+        if (ports && ports.length) {
+          const rc = $("#introReconnect"); rc.style.display = "";
+          rc.addEventListener("click", () => connect(ports[0]));
+        }
+      }).catch(() => {});
+
+      // canvas hint painter (idle / connected-but-no-frames-yet)
+      // DOM-overlay hint (never drawn onto the canvas → can't pollute mirrored pixels)
+      function showHint(text) { hintEl.textContent = text; hintEl.classList.remove("hidden"); }
+      function hideHint() { hintEl.classList.add("hidden"); }
+      // start in supersampled space so it's crisp even before SCREEN_INFO arrives
+      canvas.width = devW * SS; canvas.height = devH * SS;
+      ctx.setTransform(SS, 0, 0, SS, 0, 0);
+      showHint("waiting for device…");
+      fitCanvas();
+    </script>
+  </body>
+</html>

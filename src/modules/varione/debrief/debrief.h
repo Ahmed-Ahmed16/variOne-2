@@ -46,6 +46,13 @@ void debriefArmBeacon(const String &mode, uint32_t durationS);
 // typed. Unified across every script — the lesson is about HID trust, not the
 // specific payload.
 void debriefArmBadUSB(const String &scriptName, uint32_t durationS);
+// Evil/Vari portal: clone-AP + captive-portal harvest. clients connected, creds
+// captured, the channel cloned on, whether deauth was layered, and whether the
+// portal verified the typed password against the real AP (verifyMode).
+void debriefArmEvilPortal(
+    const String &apName, uint32_t clients, uint32_t creds, uint8_t channel, uint32_t durationS,
+    bool deauthEnabled, bool verifyMode
+);
 void debriefRunPending();
 
 #endif // VARIONE_DEBRIEF_H

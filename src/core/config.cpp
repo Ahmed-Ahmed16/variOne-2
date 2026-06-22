@@ -292,7 +292,15 @@ void BruceConfig::fromFile(bool checkFS) {
         if (wifiAp.ssid.isEmpty() || wifiAp.ssid == "BruceNet" || wifiAp.ssid == "brucenet" ||
             wifiAp.ssid == "BruceAP" || wifiAp.ssid == "Bruce") {
             wifiAp.ssid = "VariOne";
-            wifiAp.pwd = "varione1";
+            wifiAp.pwd = ""; // OPEN AP — keep consistent with default + debrief force-open
+            count++;
+        }
+        // FINALE migration: a config already on the VariOne brand may still carry the
+        // old WPA password "varione1". Force the AP open (matches nopass default + QR)
+        // WITHOUT needing an NVS erase. count++ makes saveFile() persist the fix.
+        if (wifiAp.ssid == "VariOne" && wifiAp.pwd == "varione1") {
+            wifiAp.pwd = "";
+            count++;
         }
     } else {
         count++;
@@ -444,6 +452,12 @@ void BruceConfig::fromFile(bool checkFS) {
         for (JsonObject qrEntry : qrArray) {
             String menuName = qrEntry["menuName"].as<String>();
             String content = qrEntry["content"].as<String>();
+            // FINALE migration: rewrite the old WPA AP-join QR (varione1) to nopass,
+            // in place, without an NVS erase.
+            if (content == "WIFI:T:WPA;S:VariOne;P:varione1;;") {
+                content = "WIFI:T:nopass;S:VariOne;;";
+                count++;
+            }
             qrCodes.push_back({menuName, content});
         }
     } else {
@@ -464,7 +478,7 @@ void BruceConfig::fromFile(bool checkFS) {
         }
         if (!hasRepo) {
             qrCodes = {
-                {"VariOne AP", "WIFI:T:WPA;S:VariOne;P:varione1;;"},
+                {"VariOne AP", "WIFI:T:nopass;S:VariOne;;"},
                 {"VariOne Repo", "https://github.com/Ahmed-Ahmed16/variOne-2"},
                 {"VariOne Site", "https://varione.ai/"},
                 {"Rickroll", "https://youtu.be/dQw4w9WgXcQ"},

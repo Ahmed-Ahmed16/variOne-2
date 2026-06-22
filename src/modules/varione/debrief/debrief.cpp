@@ -12,8 +12,10 @@
 #include "core/wifi/wifi_common.h"
 #include <DNSServer.h>
 #include <FS.h>
+#include <LittleFS.h>
 #include <SD.h>
 #include <WiFi.h>
+#include <esp_netif.h>
 #include <esp_wifi.h>
 #include <globals.h>
 #include <qrcode.h>
@@ -402,6 +404,24 @@ static void serveReportLoop() {
     }
     apIP = WiFi.softAPIP();
 
+    // DHCP re-seat: the AI debrief's phase-1 connects as STA (home WiFi for the
+    // cloud call); the STA->AP switch can leave the AP netif/dhcps desynced, so
+    // phones associate but never get a lease ("unable to connect to VariOne").
+    // Force-cycle the AP DHCP server with the AP IP so a fresh pool is handed out
+    // (same proven fix used for the evil portal).
+    {
+        esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        if (apNetif) {
+            esp_netif_dhcps_stop(apNetif);
+            esp_netif_ip_info_t ipInfo = {};
+            ipInfo.ip.addr = (uint32_t)apIP;
+            ipInfo.gw.addr = (uint32_t)apIP;
+            ipInfo.netmask.addr = (uint32_t)IPAddress(255, 255, 255, 0);
+            esp_netif_set_ip_info(apNetif, &ipInfo);
+            esp_netif_dhcps_start(apNetif);
+        }
+    }
+
     String apSsid = bruceConfig.wifiAp.ssid;
     if (apSsid.isEmpty()) apSsid = "VariOne";
     Serial.println("[DEBRIEF][diag] OPEN AP up via _setupAP ip=" + apIP.toString());
@@ -415,11 +435,15 @@ static void serveReportLoop() {
 #ifdef HAS_SCREEN
     QRcode qrcode(&tft);
     qrcode.init();
-    qrcode.create(joinQr);
+    qrcode.create(joinQr); // QR now centered ABOVE the reserved caption band
+    // Caption in the reserved bottom band (QR can no longer overlap it). Two
+    // centered lines: SSID to join + the ACTUAL AP IP (full, for manual entry).
+    int bandY = tftHeight - QR_CAPTION_BAND;
+    tft.fillRect(0, bandY, tftWidth, QR_CAPTION_BAND, bruceConfig.bgColor);
     tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
     tft.setTextSize(1);
-    tft.setCursor(2, tftHeight - 8);
-    tft.print("Join " + apSsid);
+    tft.drawCentreString("Open " + apSsid, tftWidth / 2, bandY + 2, 1);
+    tft.drawCentreString(apIP.toString(), tftWidth / 2, bandY + 11, 1);
 #endif
 
     Serial.println("[DEBRIEF] AP '" + apSsid + "' up at " + apIP.toString());
@@ -458,14 +482,27 @@ static void serveReportLoop() {
 // ---- best-effort SD persistence -------------------------------------------
 
 static void saveSessionToSd(const DebriefFacts &f) {
-    if (!sdcardMounted) return;
-    if (!SD.exists("/debrief")) SD.mkdir("/debrief");
-    String name = "/debrief/" + String(millis()) + "_" + String((int)f.type) + ".html";
-    File file = SD.open(name.c_str(), FILE_WRITE);
-    if (!file) return;
+    // VariOne S3: persist to LittleFS, not SD. The SD card shares the VSPI bus with
+    // the CC1101 and is torn through a full WiFi STA->AP cycle right before this call,
+    // so SD.open() fails (ff_sd_status / fopen failed) — the same bus collision that
+    // forced SubGHz .sub saves to LittleFS. LittleFS is internal flash: no bus, no
+    // collision, no "Card Failed!" stall.
+    if (!LittleFS.begin(true)) {
+        Serial.println("[DEBRIEF] LittleFS unavailable, skipping save");
+        return;
+    }
+    LittleFS.mkdir("/debrief");
+    // One file per attack type, overwritten each run, so repeated debriefs can never
+    // fill the small LittleFS partition (bounded to #attack-types).
+    String name = "/debrief/last_" + String((int)f.type) + ".html";
+    File file = LittleFS.open(name.c_str(), FILE_WRITE);
+    if (!file) {
+        Serial.println("[DEBRIEF] LittleFS save failed, continuing without persistence");
+        return;
+    }
     file.print(s_report);
     file.close();
-    Serial.println("[DEBRIEF] saved " + name);
+    Serial.println("[DEBRIEF] saved " + name + " (LittleFS)");
 }
 
 // ---- public entry ---------------------------------------------------------
@@ -514,6 +551,23 @@ void debriefArmBadUSB(const String &scriptName, uint32_t durationS) {
     int slash = scriptName.lastIndexOf('/');
     g_pending.target = slash >= 0 ? scriptName.substring(slash + 1) : scriptName;
     if (g_pending.target.isEmpty()) g_pending.target = "BadUSB script";
+    g_pending.durationS = durationS;
+    g_pendingValid = true;
+}
+
+void debriefArmEvilPortal(
+    const String &apName, uint32_t clients, uint32_t creds, uint8_t channel, uint32_t durationS,
+    bool deauthEnabled, bool verifyMode
+) {
+    g_pending = DebriefFacts{};
+    g_pending.type = DEBRIEF_EVIL_PORTAL;
+    String tgt = apName.isEmpty() ? String("Cloned AP") : apName;
+    if (deauthEnabled) tgt += " +Deauth";
+    if (verifyMode) tgt += " +Verify";
+    g_pending.target = tgt;
+    g_pending.channels = String(channel);
+    g_pending.clients = clients;
+    g_pending.creds = creds;
     g_pending.durationS = durationS;
     g_pendingValid = true;
 }
