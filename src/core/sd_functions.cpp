@@ -605,7 +605,10 @@ String loopSD(FS &fs, bool filePicker, String allowed_ext, String rootPath) {
 #endif
             redraw = false;
         }
-        displayScrollingText(fileList[index].filename, coord);
+        // Wiggle removed: the selected filename used to marquee-scroll every frame,
+        // which read as a distracting wiggle when browsing creds on SD. listFiles()
+        // already draws the (truncated) name statically, so drop the animation.
+        // displayScrollingText(fileList[index].filename, coord);
 
         // !PrevPress enables EscPress on 3Btn devices to be used in Serial Navigation
         // This condition is important for StickCPlus, Core and other 3 Btn devices

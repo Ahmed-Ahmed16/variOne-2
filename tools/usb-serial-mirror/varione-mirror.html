@@ -417,7 +417,10 @@
         // marker (firmware varioneStamp); strip it for the caption/QR checks so
         // stamped narration still captions. The raw log keeps the full stamp.
         const line = raw.replace(/^\[[^\]]*\]\s*/, "");
-        if (line.startsWith(">>QR:")) { renderQR(line.slice(5)); return; } // QR matrix line
+        // QR mirror disabled: replicating the QR matrix on the canvas rendered
+        // garbled (modules landed over partially-streamed UI). The device's own
+        // screen shows the real, scannable QR, so just skip these lines here.
+        if (line.startsWith(">>QR:")) return;
         if (line.startsWith(">>")) pushCaption(line);
         logRaw(raw);
       }
