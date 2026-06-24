@@ -411,11 +411,15 @@
         }
       }
       function flushText() {
-        const line = textBuf.trim(); textBuf = "";
-        if (!line) return;
+        const raw = textBuf.trim(); textBuf = "";
+        if (!raw) return;
+        // Tolerate an optional device-clock stamp "[HH:MM:SS] " before the ">>"
+        // marker (firmware varioneStamp); strip it for the caption/QR checks so
+        // stamped narration still captions. The raw log keeps the full stamp.
+        const line = raw.replace(/^\[[^\]]*\]\s*/, "");
         if (line.startsWith(">>QR:")) { renderQR(line.slice(5)); return; } // QR matrix line
         if (line.startsWith(">>")) pushCaption(line);
-        logRaw(line);
+        logRaw(raw);
       }
 
       // ">>QR:offX,offY,mult,WD,<hex matrix>" — device sends the whole QR as one line

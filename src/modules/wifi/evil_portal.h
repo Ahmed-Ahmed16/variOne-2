@@ -82,6 +82,11 @@ private:
     int previousTotalCapturedCredentials = -1;
     String capturedCredentialsHtml = "";
     bool verifyPass = false;
+    // Persisted verify outcome for the on-screen VERIFY: VALID/INVALID headline.
+    // verifyPass is momentary (reset each loop); this survives redraws and only
+    // changes on the next verification attempt.
+    enum VerifyResult { VR_NONE, VR_VALID, VR_INVALID };
+    VerifyResult lastVerifyResult = VR_NONE;
 
     CaptiveRequestHandler *_captiveHandler = nullptr;
 
